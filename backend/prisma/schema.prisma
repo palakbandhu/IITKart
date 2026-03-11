@@ -69,14 +69,15 @@ model RiderProfile {
 model Order {
   id          Int         @id @default(autoincrement())
   customerId  Int
-  vendorId    Int?
+  vendorId    Int
   riderId     Int?
   status      OrderStatus @default(PENDING)
   totalAmount Float
   createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   customer User @relation("CustomerOrders", fields: [customerId], references: [id])
-  vendor   VendorProfile? @relation(fields: [vendorId], references: [id])
+  vendor   VendorProfile @relation(fields: [vendorId], references: [id])
   rider    RiderProfile?  @relation(fields: [riderId], references: [id])
 
   items OrderItem[]
