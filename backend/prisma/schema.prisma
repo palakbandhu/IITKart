@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 // Enums for Roles
@@ -37,36 +37,39 @@ model User {
   profileImageUrl String?
   
   // Relations
-
   orders        Order[] @relation("CustomerOrders")
   vendorProfile VendorProfile?
   riderProfile  RiderProfile?
+  cart          Cart?
 }
 
 model VendorProfile {
   id          Int     @id @default(autoincrement())
   shopName    String
   shopType    String
-  openingTime String // e.g., "08:00 AM"
+  openingTime String
   closingTime String
   description String?
   isOpen      Boolean @default(true)
-  orders      Order[]
-  
-  userId      Int     @unique
-  user        User    @relation(fields: [userId], references: [id])
-  // products    Product[].  products will be added later when we implement the Product model
+
+  orders Order[]
+
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id])
+
+  // products Product[]  (will be added later)
 }
 
 model RiderProfile {
   id          Int     @id @default(autoincrement())
-  vehicleType String  // Bike, Car, Bicycle....
-  vehicleNo   String? // Vehicle Registration Number, could be kept optional keeping in mind that riders might have Bicycle too.
+  vehicleType String
+  vehicleNo   String?
   isAvailable Boolean @default(true)
-  deliveries  Order[]
-  
-  userId      Int     @unique
-  user        User    @relation(fields: [userId], references: [id])
+
+  deliveries Order[]
+
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id])
 }
 
 model Order {
@@ -79,9 +82,9 @@ model Order {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  customer User @relation("CustomerOrders", fields: [customerId], references: [id])
+  customer User          @relation("CustomerOrders", fields: [customerId], references: [id])
   vendor   VendorProfile @relation(fields: [vendorId], references: [id])
-  rider    RiderProfile?  @relation(fields: [riderId], references: [id])
+  rider    RiderProfile? @relation(fields: [riderId], references: [id])
 
   items OrderItem[]
 
@@ -92,8 +95,26 @@ model OrderItem {
   id        Int @id @default(autoincrement())
   orderId   Int
   productId Int
-  quantity  Int @default(1)
+  quantity  Int   @default(1)
   price     Float
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Cart {
+  id        Int        @id @default(autoincrement())
+  userId    Int        @unique
+  user      User       @relation(fields: [userId], references: [id])
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        Int  @id @default(autoincrement())
+  cartId    Int
+  productId Int
+  quantity  Int
+
+  cart Cart @relation(fields: [cartId], references: [id])
 }
