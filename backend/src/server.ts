@@ -6,6 +6,7 @@ import authRoutes from './routes/authRoutes.js';
 import userRoutes from "./routes/userRoutes.js";
 import riderRoutes from './routes/riderRoutes.js';
 import cartRoutes from './routes/cartRoutes.js';
+import orderRoutes from "./routes/orderRoutes.js";
 
 
 dotenv.config();
@@ -22,6 +23,7 @@ app.use('/api/auth', authRoutes);
 app.use("/api/users", userRoutes);
 app.use('/api/riders', riderRoutes);
 app.use('/api/cart', cartRoutes);
+app.use("/api/orders", orderRoutes);
 
 
 app.get('/health', (req: Request, res: Response) => {
