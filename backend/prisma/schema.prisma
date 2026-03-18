@@ -35,12 +35,15 @@ model User {
   hostel      String?
   roomNumber  String?
   profileImageUrl String?
+  isActive    Boolean @default(true)
+isSuspended Boolean @default(false)
   
   // Relations
   orders        Order[] @relation("CustomerOrders")
   vendorProfile VendorProfile?
   riderProfile  RiderProfile?
   cart          Cart?
+
 }
 
 model VendorProfile {

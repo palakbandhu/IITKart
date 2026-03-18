@@ -47,17 +47,35 @@ export const protect = async (
       return;
     }
 
-    const decoded = jwt.verify(token, secret) as unknown as { id: number; role: Role };  // Changed role from string to Role
+    const decoded = jwt.verify(token, secret) as {
+      id: number;
+      role: Role;
+    };
 
-    // Verify user still exists in DB
-    const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+    // ✅ Fetch user
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id }
+    });
+
     if (!user) {
       res.status(401).json({ message: 'User no longer exists' });
       return;
     }
 
-    req.user = { id: decoded.id, role: decoded.role };
+    // ✅ ADD THIS CHECK HERE (correct place)
+    if (user.isSuspended) {
+      res.status(403).json({ message: "Account suspended" });
+      return;
+    }
+
+    // ✅ Attach user to request
+    req.user = {
+      id: user.id,
+      role: user.role
+    };
+
     next();
+
   } catch (error) {
     res.status(401).json({ message: 'Not authorized, invalid token' });
   }
