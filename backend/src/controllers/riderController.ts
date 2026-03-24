@@ -147,7 +147,7 @@ export const acceptDelivery = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
-// @desc    Mark an assigned delivery as DELIVERED
+// @desc    Mark an assigned delivery as DELIVERED and credit rider earnings (10% of order)
 // @route   PATCH /api/riders/deliveries/:id/complete
 export const completeDelivery = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -195,23 +195,104 @@ export const completeDelivery = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
-    const updatedOrder = await prisma.order.update({
-      where: { id: orderId },
-      data: { status: 'DELIVERED' },
-      include: {
-        items: true,
-        customer: {
-          select: { id: true, name: true, phone: true },
+    // Rider earns 10% of the order total
+    const deliveryEarning = parseFloat((order.totalAmount * 0.10).toFixed(2));
+
+    // Use a transaction — update order + credit earnings atomically
+    const [updatedOrder, updatedRider] = await prisma.$transaction([
+      prisma.order.update({
+        where: { id: orderId },
+        data: { status: 'DELIVERED' },
+        include: {
+          items: true,
+          customer: { select: { id: true, name: true, phone: true } },
         },
-      },
-    });
+      }),
+      prisma.riderProfile.update({
+        where: { id: riderProfile.id },
+        data: {
+          totalEarnings:     { increment: deliveryEarning },
+          totalDeliveries:   { increment: 1 },
+        },
+      }),
+    ]);
 
     res.status(200).json({
       message: 'Delivery completed successfully',
+      earning: deliveryEarning,
       order: updatedOrder,
+      riderStats: {
+        totalEarnings:   updatedRider.totalEarnings,
+        totalDeliveries: updatedRider.totalDeliveries,
+      },
     });
   } catch (error) {
     console.error('Complete Delivery Error:', error);
     res.status(500).json({ message: 'Server error while completing delivery', error });
+  }
+};
+
+// @desc    Get rider earnings summary + delivery history
+// @route   GET /api/riders/earnings
+export const getRiderEarnings = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const riderProfile = await prisma.riderProfile.findUnique({
+      where: { userId: req.user!.id },
+    });
+
+    if (!riderProfile) {
+      res.status(404).json({ message: 'Rider profile not found' });
+      return;
+    }
+
+    // Full delivery history for this rider
+    const deliveries = await prisma.order.findMany({
+      where: {
+        riderId: riderProfile.id,
+        status: 'DELIVERED',
+      },
+      select: {
+        id:          true,
+        totalAmount: true,
+        createdAt:   true,
+        updatedAt:   true,
+        customer: {
+          select: { name: true },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    // Earnings by day (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const earningsByDay: Record<string, number> = {};
+    for (const d of deliveries) {
+      if (d.updatedAt >= thirtyDaysAgo) {
+        const day: string = d.updatedAt.toISOString().split('T')[0]!;
+        const earned = parseFloat((d.totalAmount * 0.10).toFixed(2));
+        earningsByDay[day] = parseFloat(((earningsByDay[day] || 0) + earned).toFixed(2));
+      }
+    }
+
+    res.status(200).json({
+      message: 'Rider earnings fetched successfully',
+      summary: {
+        totalEarnings:   riderProfile.totalEarnings,
+        totalDeliveries: riderProfile.totalDeliveries,
+      },
+      earningsByDay,
+      deliveryHistory: deliveries.map(d => ({
+        orderId:      d.id,
+        customerName: d.customer.name,
+        orderAmount:  d.totalAmount,
+        earned:       parseFloat((d.totalAmount * 0.10).toFixed(2)),
+        deliveredAt:  d.updatedAt,
+      })),
+    });
+  } catch (error) {
+    console.error('Get Rider Earnings Error:', error);
+    res.status(500).json({ message: 'Server error while fetching earnings', error });
   }
 };

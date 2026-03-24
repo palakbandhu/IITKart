@@ -25,21 +25,22 @@ enum OrderStatus {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  phone     String   @unique
-  password  String
-  name      String
-  role      Role     @default(CUSTOMER)
-  createdAt DateTime @default(now())
-  hostel      String?
-  roomNumber  String?
+  id              Int      @id @default(autoincrement())
+  email           String   @unique
+  phone           String   @unique
+  password        String
+  name            String
+  role            Role     @default(CUSTOMER)
+  createdAt       DateTime @default(now())
+  hostel          String?
+  roomNumber      String?
   profileImageUrl String?
-  isActive    Boolean @default(true)
-isSuspended Boolean @default(false)
-  
+
+isActive        Boolean @default(true)
+isSuspended     Boolean @default(false)
+
   // Relations
-  orders        Order[] @relation("CustomerOrders")
+  orders        Order[]        @relation("CustomerOrders")
   vendorProfile VendorProfile?
   riderProfile  RiderProfile?
   cart          Cart?
@@ -55,12 +56,33 @@ model VendorProfile {
   description String?
   isOpen      Boolean @default(true)
 
-  orders Order[]
+  orders   Order[]
   products Product[]
 
   userId Int  @unique
   user   User @relation(fields: [userId], references: [id])
+}
 
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  price       Float
+  stock       Int      @default(0)
+  imageUrl    String?
+  isAvailable Boolean  @default(true)
+
+  vendorId Int
+  vendor   VendorProfile @relation(fields: [vendorId], references: [id])
+
+  orderItems OrderItem[]
+  cartItems  CartItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([vendorId])
 }
 
 model RiderProfile {
@@ -68,6 +90,9 @@ model RiderProfile {
   vehicleType String
   vehicleNo   String?
   isAvailable Boolean @default(true)
+  
+  totalEarnings   Float   @default(0)
+  totalDeliveries Int     @default(0)
 
   deliveries Order[]
 
@@ -95,13 +120,13 @@ model Order {
 }
 
 model OrderItem {
-  id        Int @id @default(autoincrement())
+  id        Int   @id @default(autoincrement())
   orderId   Int
   productId Int
   quantity  Int   @default(1)
   price     Float
 
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])
 }
 
@@ -115,7 +140,7 @@ model Cart {
 }
 
 model CartItem {
-  id        Int     @id @default(autoincrement())
+  id        Int @id @default(autoincrement())
   cartId    Int
   cart      Cart    @relation(fields: [cartId], references: [id])
   productId Int
@@ -125,17 +150,3 @@ model CartItem {
   updatedAt DateTime @updatedAt
 }
 
-model Product {
-  id          Int            @id @default(autoincrement())
-  name        String
-  description String?
-  price       Float
-  imageUrl    String?
-  isAvailable Boolean        @default(true)
-  vendorId    Int
-  vendor      VendorProfile  @relation(fields: [vendorId], references: [id])
-  orderItems  OrderItem[]
-  cartItems   CartItem[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-}
