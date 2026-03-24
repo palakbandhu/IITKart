@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 // Enums for Roles
@@ -15,45 +15,146 @@ enum Role {
   ADMIN
 }
 
+enum OrderStatus {
+  PENDING
+  PREPARING
+  READY
+  PICKED_UP
+  DELIVERED
+  CANCELLED
+}
+
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String?   @unique
-  phone     String?   @unique
-  password  String?
-  name      String?
-  role      Role     @default(CUSTOMER)
+  id              Int       @id @default(autoincrement())
+  email           String?   @unique
+  phone           String?   @unique
+  password        String?
+  name            String?
+  role            Role      @default(CUSTOMER)
+  
+  // Your OTP Fields
   otpHash         String?
   otpExpiry       DateTime?
-  isPhoneVerified Boolean  @default(false)
-  createdAt DateTime @default(now())
+  isPhoneVerified Boolean   @default(false)
+  
+  createdAt       DateTime  @default(now())
+  
+  // New fields from the main repo
+  hostel          String?
+  roomNumber      String?
+  profileImageUrl String?
+
+isActive        Boolean @default(true)
+isSuspended     Boolean @default(false)
 
   // Relations
-
-  // orders        Order[]
+  orders        Order[]        @relation("CustomerOrders")
   vendorProfile VendorProfile?
   riderProfile  RiderProfile?
+  cart          Cart?
+
 }
 
 model VendorProfile {
   id          Int     @id @default(autoincrement())
   shopName    String
   shopType    String
-  openingTime String // e.g., "08:00 AM"
+  openingTime String
   closingTime String
   description String?
   isOpen      Boolean @default(true)
-  
-  userId      Int     @unique
-  user        User    @relation(fields: [userId], references: [id])
-  // products    Product[].  products will be added later when we implement the Product model
+
+  orders   Order[]
+  products Product[]
+
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id])
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  price       Float
+  stock       Int      @default(0)
+  imageUrl    String?
+  isAvailable Boolean  @default(true)
+
+  vendorId Int
+  vendor   VendorProfile @relation(fields: [vendorId], references: [id])
+
+  orderItems OrderItem[]
+  cartItems  CartItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([vendorId])
 }
 
 model RiderProfile {
   id          Int     @id @default(autoincrement())
-  vehicleType String  // Bike, Car, Bicycle....
-  vehicleNo   String? // Vehicle Registration Number, could be kept optional keeping in mind that riders might have Bicycle too.
+  vehicleType String
+  vehicleNo   String?
   isAvailable Boolean @default(true)
   
-  userId      Int     @unique
-  user        User    @relation(fields: [userId], references: [id])
+  totalEarnings   Float   @default(0)
+  totalDeliveries Int     @default(0)
+
+  deliveries Order[]
+
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id])
 }
+
+model Order {
+  id          Int         @id @default(autoincrement())
+  customerId  Int
+  vendorId    Int
+  riderId     Int?
+  status      OrderStatus @default(PENDING)
+  totalAmount Float
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  customer User          @relation("CustomerOrders", fields: [customerId], references: [id])
+  vendor   VendorProfile @relation(fields: [vendorId], references: [id])
+  rider    RiderProfile? @relation(fields: [riderId], references: [id])
+
+  items OrderItem[]
+
+  @@index([customerId])
+}
+
+model OrderItem {
+  id        Int   @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int   @default(1)
+  price     Float
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model Cart {
+  id        Int        @id @default(autoincrement())
+  userId    Int        @unique
+  user      User       @relation(fields: [userId], references: [id])
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        Int @id @default(autoincrement())
+  cartId    Int
+  cart      Cart    @relation(fields: [cartId], references: [id])
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
