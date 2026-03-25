@@ -68,7 +68,7 @@ export const updatePassword = async (req: Request, res: Response) => {
       where: { id: userId }
     });
 
-    if (!user) {
+    if (!user || !user.password) {
       return res.status(404).json({ message: "User not found" });
     }
 

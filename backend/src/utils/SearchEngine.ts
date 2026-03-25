@@ -38,10 +38,10 @@ export class SearchEngine {
     const intents: { maxPrice?: number; minPrice?: number; isVeg?: boolean } = {};
 
     const underMatch = normalized.match(/(?:under|below|max)\s*(\d+)/);
-    if (underMatch) intents.maxPrice = parseInt(underMatch[1], 10);
+    if (underMatch) intents.maxPrice = parseInt(underMatch[1] as string, 10);
 
     const aboveMatch = normalized.match(/(?:above|over|min)\s*(\d+)/);
-    if (aboveMatch) intents.minPrice = parseInt(aboveMatch[1], 10);
+    if (aboveMatch) intents.minPrice = parseInt(aboveMatch[1] as string, 10);
 
     return intents;
   }
@@ -49,23 +49,23 @@ export class SearchEngine {
   public static fuzzyMatch(word1: string, word2: string, maxDistance: number = 2): number {
     if (Math.abs(word1.length - word2.length) > maxDistance) return -1;
 
-    const dp = Array.from({ length: word1.length + 1 }, () => Array(word2.length + 1).fill(0));
+    const dp: number[][] = Array.from({ length: word1.length + 1 }, () => Array(word2.length + 1).fill(0));
 
-    for (let i = 0; i <= word1.length; i++) dp[i][0] = i;
-    for (let j = 0; j <= word2.length; j++) dp[0][j] = j;
+    for (let i = 0; i <= word1.length; i++) dp[i]![0] = i;
+    for (let j = 0; j <= word2.length; j++) dp[0]![j] = j;
 
     for (let i = 1; i <= word1.length; i++) {
       for (let j = 1; j <= word2.length; j++) {
         const cost = word1[i - 1] === word2[j - 1] ? 0 : 1;
-        dp[i][j] = Math.min(
-          dp[i - 1][j] + 1,       
-          dp[i][j - 1] + 1,       
-          dp[i - 1][j - 1] + cost 
+        dp[i]![j] = Math.min(
+          dp[i - 1]?.[j] ?? 0 + 1,       
+          dp[i]?.[j - 1] ?? 0 + 1,       
+          dp[i - 1]?.[j - 1] ?? 0 + cost 
         );
       }
     }
 
-    const dist = dp[word1.length][word2.length];
+    const dist = dp[word1.length]?.[word2.length] ?? 0;
     return dist <= maxDistance ? dist : -1;
   }
 
@@ -89,7 +89,7 @@ export class SearchEngine {
       if (shopType.includes(token)) score += 8;
 
       if (name.startsWith(token)) score += 10;
-      else if (nameWords.some(nw => nw.startsWith(token))) score += 7;
+      else if (nameWords.some((nw: string) => nw.startsWith(token))) score += 7;
 
       if (token.length > 3) {
         for (const nw of nameWords) {
