@@ -42,8 +42,8 @@ export function CourierInterface() {
   const navigate = useNavigate();
   const { orders, currentUser, setCurrentUser, updateOrderStatus } = useApp();
 
-  useEffect(() => { if (!currentUser || currentUser.role !== 'courier') navigate('/auth'); }, [currentUser, navigate]);
-  if (!currentUser || currentUser.role !== 'courier') return null;
+  useEffect(() => { if (!currentUser || currentUser.role !== 'RIDER') navigate('/auth'); }, [currentUser, navigate]);
+  if (!currentUser || currentUser.role !== 'RIDER') return null;
 
   const [activeTab, setActiveTab] = useState('deliveries');
   const [notifications, setNotifications] = useState<DeliveryNotification[]>(

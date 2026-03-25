@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingCart, Store, Truck, Shield, ArrowRight, Star, Zap, Clock, Package } from 'lucide-react';
 
-
 function useCountUp(target: number, duration = 1500, start = false) {
   const [count, setCount] = useState(0);
   useEffect(() => {
@@ -72,7 +71,6 @@ export function HomePage() {
   const navigate = useNavigate();
   const statsRef = useRef<HTMLDivElement>(null);
   const [statsVisible, setStatsVisible] = useState(false);
-
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) setStatsVisible(true); },

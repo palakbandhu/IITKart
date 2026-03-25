@@ -3,41 +3,81 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/app/contexts/AppContext';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { toast } from 'sonner';
-import { User, Store, Bike, Shield, Eye, EyeOff, ArrowLeft, ArrowRight, Mail, Lock, Phone, Home } from 'lucide-react';
+import {
+  User as UserIcon,
+  Store,
+  Bike,
+  Shield,
+  Eye,
+  EyeOff,
+  ArrowLeft,
+  ArrowRight,
+  Mail,
+  Lock,
+  Phone,
+  Home,
+} from 'lucide-react';
 import { ForgotPassword } from './ForgotPassword';
+
+type AppRole = 'CUSTOMER' | 'VENDOR' | 'RIDER' | 'ADMIN';
 
 export function AuthPage() {
   const navigate = useNavigate();
   const { login, register } = useApp();
+
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [loginData, setLoginData] = useState({ email: '', password: '' });
-  const [registerData, setRegisterData] = useState({
-    name: '', email: '', password: '', confirmPassword: '',
-    role: 'user' as 'user' | 'vendor' | 'courier' | 'admin',
-    phone: '', address: ''
+
+  const [registerData, setRegisterData] = useState<{
+    name: string;
+    email: string;
+    password: string;
+    confirmPassword: string;
+    role: AppRole;
+    phone: string;
+    address: string;
+  }>({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    role: 'CUSTOMER',
+    phone: '',
+    address: '',
   });
 
-  const navigateToRole = (role: string) => {
-    const map: Record<string, string> = { user: '/user', vendor: '/vendor', courier: '/courier', admin: '/admin' };
-    navigate(map[role] || '/user');
+  const navigateToRole = (role: AppRole) => {
+    const map: Record<AppRole, string> = {
+      CUSTOMER: '/user',
+      VENDOR: '/vendor',
+      RIDER: '/courier',
+      ADMIN: '/admin',
+    };
+    navigate(map[role]);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await new Promise(r => setTimeout(r, 600));
+
+    // mock delay (keep if you want UI spinner)
+    await new Promise((r) => setTimeout(r, 600));
+
     const user = login(loginData.email, loginData.password);
+
     setLoading(false);
+
     if (user) {
-      toast.success(`Welcome back, ${user.name}! 👋`);
-      navigateToRole(user.role);
+      toast.success(`Welcome back, ${user.name}!`);
+      // user.role should now be CUSTOMER/VENDOR/RIDER/ADMIN after you update AppContext.tsx
+      navigateToRole(user.role as AppRole);
     } else {
       toast.error('Invalid email or password');
     }
@@ -45,28 +85,49 @@ export function AuthPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (registerData.password !== registerData.confirmPassword) { toast.error('Passwords do not match'); return; }
-    if (registerData.password.length < 6) { toast.error('Password must be at least 6 characters'); return; }
+
+    if (registerData.password !== registerData.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    if (registerData.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
     setLoading(true);
-    await new Promise(r => setTimeout(r, 600));
-    const user = register(registerData.name, registerData.email, registerData.password, registerData.role, registerData.phone, registerData.address);
+    await new Promise((r) => setTimeout(r, 600));
+
+    const user = register(
+      registerData.name,
+      registerData.email,
+      registerData.password,
+      registerData.role,
+      registerData.phone,
+      // only customers need address in your UI
+      registerData.role === 'CUSTOMER' ? registerData.address : undefined
+    );
+
     setLoading(false);
+
     if (user) {
-      toast.success(`Welcome to IITKart, ${user.name}! 🎉`);
-      navigateToRole(user.role);
+      toast.success(`Welcome to IITKart, ${user.name}!`);
+      navigateToRole(user.role as AppRole);
     } else {
       toast.error('Registration failed. Try a different email.');
     }
   };
 
-  const roles = [
-    { value: 'user', label: 'Customer', icon: User },
-    { value: 'vendor', label: 'Vendor', icon: Store },
-    { value: 'courier', label: 'Delivery Partner', icon: Bike },
-    { value: 'admin', label: 'Admin', icon: Shield },
+  const roles: { value: AppRole; label: string; icon: React.ElementType }[] = [
+    { value: 'CUSTOMER', label: 'Customer', icon: UserIcon },
+    { value: 'VENDOR', label: 'Vendor', icon: Store },
+    { value: 'RIDER', label: 'Delivery Partner', icon: Bike },
+    { value: 'ADMIN', label: 'Admin', icon: Shield },
   ];
 
-  if (showForgotPassword) return <ForgotPassword onBack={() => setShowForgotPassword(false)} />;
+  if (showForgotPassword) {
+    return <ForgotPassword onBack={() => setShowForgotPassword(false)} />;
+  }
 
   return (
     <div className="min-h-screen flex bg-[#F0F4FF] dark:bg-[#0A1628]">
@@ -86,7 +147,11 @@ export function AuthPage() {
           </button>
 
           <div className="flex items-center gap-4 mb-8">
-            <img src="/assets/iitKart-logo.jpg" alt="IITKart" className="w-16 h-16 rounded-2xl object-cover shadow-xl shadow-black/30" />
+            <img
+              src="/assets/iitKart-logo.jpg"
+              alt="IITKart"
+              className="w-16 h-16 rounded-2xl object-cover shadow-xl shadow-black/30"
+            />
             <div>
               <div className="text-3xl font-extrabold text-white" style={{ fontFamily: 'Syne, sans-serif' }}>
                 IITKart
@@ -96,7 +161,8 @@ export function AuthPage() {
           </div>
 
           <h1 className="text-4xl font-extrabold text-white mb-4 leading-tight" style={{ fontFamily: 'Syne, sans-serif' }}>
-            Your campus,<br />
+            Your campus,
+            <br />
             <span className="text-[#F97316]">delivered.</span>
           </h1>
           <p className="text-white/60 text-base leading-relaxed max-w-xs">
@@ -105,7 +171,7 @@ export function AuthPage() {
         </div>
 
         <div className="relative z-10 grid grid-cols-2 gap-3">
-          {['500+ Daily Orders', '6 Campus Shops', '50+ Riders', 'Fast Delivery'].map(s => (
+          {['500+ Daily Orders', '6 Campus Shops', '50+ Riders', 'Fast Delivery'].map((s) => (
             <div key={s} className="bg-white/10 backdrop-blur rounded-xl px-4 py-3 text-white/80 text-sm font-medium">
               {s}
             </div>
@@ -127,7 +193,7 @@ export function AuthPage() {
         <div className="w-full max-w-md">
           {/* Tab switcher */}
           <div className="flex bg-white dark:bg-[#0F1E3A] rounded-2xl p-1.5 mb-8 shadow-sm border border-blue-100 dark:border-blue-900/30">
-            {(['login', 'register'] as const).map(tab => (
+            {(['login', 'register'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -156,9 +222,10 @@ export function AuthPage() {
                 <div className="relative">
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <Input
-                    type="email" placeholder="you@iitk.ac.in"
+                    type="email"
+                    placeholder="you@iitk.ac.in"
                     value={loginData.email}
-                    onChange={e => setLoginData({ ...loginData, email: e.target.value })}
+                    onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                     required
                     className="pl-10 h-11 bg-white dark:bg-[#0F1E3A] border-blue-100 dark:border-blue-900/40 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]/20 rounded-xl"
                   />
@@ -170,13 +237,18 @@ export function AuthPage() {
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <Input
-                    type={showPassword ? 'text' : 'password'} placeholder="••••••••"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
                     value={loginData.password}
-                    onChange={e => setLoginData({ ...loginData, password: e.target.value })}
+                    onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                     required
                     className="pl-10 pr-10 h-11 bg-white dark:bg-[#0F1E3A] border-blue-100 dark:border-blue-900/40 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]/20 rounded-xl"
                   />
-                  <button type="button" onClick={() => setShowPassword(v => !v)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
@@ -191,13 +263,16 @@ export function AuthPage() {
               </button>
 
               <button
-                type="submit" disabled={loading}
+                type="submit"
+                disabled={loading}
                 className="w-full flex items-center justify-center gap-2 bg-[#1E3A8A] hover:bg-[#2B4FBA] disabled:opacity-60 text-white font-bold h-12 rounded-xl transition-all shadow-lg shadow-blue-900/20 hover:shadow-xl hover:shadow-blue-900/30 hover:-translate-y-0.5 active:scale-95"
               >
                 {loading ? (
                   <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
-                  <><span>Sign In</span> <ArrowRight className="w-4 h-4" /></>
+                  <>
+                    <span>Sign In</span> <ArrowRight className="w-4 h-4" />
+                  </>
                 )}
               </button>
 
@@ -212,7 +287,8 @@ export function AuthPage() {
                     ['Admin', 'admin@iitk.ac.in'],
                   ].map(([role, email]) => (
                     <button
-                      key={email} type="button"
+                      key={email}
+                      type="button"
                       onClick={() => setLoginData({ email, password: 'password123' })}
                       className="flex justify-between items-center w-full text-xs text-slate-600 dark:text-slate-400 hover:text-[#1E3A8A] dark:hover:text-blue-300 py-0.5 transition-colors"
                     >
@@ -221,7 +297,9 @@ export function AuthPage() {
                     </button>
                   ))}
                 </div>
-                <p className="text-[10px] text-slate-400 mt-2">Password: <span className="font-mono">password123</span></p>
+                <p className="text-[10px] text-slate-400 mt-2">
+                  Password: <span className="font-mono">password123</span>
+                </p>
               </div>
             </form>
           ) : (
@@ -237,12 +315,13 @@ export function AuthPage() {
               <div className="space-y-1">
                 <Label className="text-slate-700 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider">Register as</Label>
                 <div className="grid grid-cols-2 gap-2">
-                  {roles.map(r => {
+                  {roles.map((r) => {
                     const Icon = r.icon;
                     return (
                       <button
-                        key={r.value} type="button"
-                        onClick={() => setRegisterData({ ...registerData, role: r.value as any })}
+                        key={r.value}
+                        type="button"
+                        onClick={() => setRegisterData({ ...registerData, role: r.value })}
                         className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
                           registerData.role === r.value
                             ? 'bg-[#1E3A8A] border-[#1E3A8A] text-white shadow-md'
@@ -262,7 +341,7 @@ export function AuthPage() {
                   <Input
                     placeholder="Your full name"
                     value={registerData.name}
-                    onChange={e => setRegisterData({ ...registerData, name: e.target.value })}
+                    onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
                     required
                     className="h-11 bg-white dark:bg-[#0F1E3A] border-blue-100 dark:border-blue-900/40 focus:border-[#1E3A8A] rounded-xl"
                   />
@@ -273,9 +352,10 @@ export function AuthPage() {
                   <div className="relative">
                     <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <Input
-                      type="email" placeholder="you@iitk.ac.in"
+                      type="email"
+                      placeholder="you@iitk.ac.in"
                       value={registerData.email}
-                      onChange={e => setRegisterData({ ...registerData, email: e.target.value })}
+                      onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
                       required
                       className="pl-10 h-11 bg-white dark:bg-[#0F1E3A] border-blue-100 dark:border-blue-900/40 focus:border-[#1E3A8A] rounded-xl"
                     />
@@ -287,15 +367,16 @@ export function AuthPage() {
                   <div className="relative">
                     <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <Input
-                      type="tel" placeholder="10-digit number"
+                      type="tel"
+                      placeholder="10-digit number"
                       value={registerData.phone}
-                      onChange={e => setRegisterData({ ...registerData, phone: e.target.value })}
+                      onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
                       className="pl-10 h-11 bg-white dark:bg-[#0F1E3A] border-blue-100 dark:border-blue-900/40 focus:border-[#1E3A8A] rounded-xl"
                     />
                   </div>
                 </div>
 
-                {registerData.role === 'user' && (
+                {registerData.role === 'CUSTOMER' && (
                   <div className="space-y-1">
                     <Label className="text-slate-700 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider">Address</Label>
                     <div className="relative">
@@ -303,7 +384,7 @@ export function AuthPage() {
                       <Input
                         placeholder="Hall X, Room XXX"
                         value={registerData.address}
-                        onChange={e => setRegisterData({ ...registerData, address: e.target.value })}
+                        onChange={(e) => setRegisterData({ ...registerData, address: e.target.value })}
                         className="pl-10 h-11 bg-white dark:bg-[#0F1E3A] border-blue-100 dark:border-blue-900/40 focus:border-[#1E3A8A] rounded-xl"
                       />
                     </div>
@@ -315,13 +396,18 @@ export function AuthPage() {
                   <div className="relative">
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <Input
-                      type={showPassword ? 'text' : 'password'} placeholder="Min. 6 characters"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Min. 6 characters"
                       value={registerData.password}
-                      onChange={e => setRegisterData({ ...registerData, password: e.target.value })}
+                      onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
                       required
                       className="pl-10 pr-10 h-11 bg-white dark:bg-[#0F1E3A] border-blue-100 dark:border-blue-900/40 focus:border-[#1E3A8A] rounded-xl"
                     />
-                    <button type="button" onClick={() => setShowPassword(v => !v)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
@@ -332,13 +418,18 @@ export function AuthPage() {
                   <div className="relative">
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <Input
-                      type={showConfirm ? 'text' : 'password'} placeholder="Repeat password"
+                      type={showConfirm ? 'text' : 'password'}
+                      placeholder="Repeat password"
                       value={registerData.confirmPassword}
-                      onChange={e => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
+                      onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
                       required
                       className="pl-10 pr-10 h-11 bg-white dark:bg-[#0F1E3A] border-blue-100 dark:border-blue-900/40 focus:border-[#1E3A8A] rounded-xl"
                     />
-                    <button type="button" onClick={() => setShowConfirm(v => !v)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm((v) => !v)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    >
                       {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
@@ -346,13 +437,16 @@ export function AuthPage() {
               </div>
 
               <button
-                type="submit" disabled={loading}
+                type="submit"
+                disabled={loading}
                 className="w-full flex items-center justify-center gap-2 bg-[#1E3A8A] hover:bg-[#2B4FBA] disabled:opacity-60 text-white font-bold h-12 rounded-xl transition-all shadow-lg shadow-blue-900/20 hover:shadow-xl active:scale-95"
               >
                 {loading ? (
                   <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
-                  <><span>Create Account</span> <ArrowRight className="w-4 h-4" /></>
+                  <>
+                    <span>Create Account</span> <ArrowRight className="w-4 h-4" />
+                  </>
                 )}
               </button>
             </form>

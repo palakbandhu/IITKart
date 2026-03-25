@@ -77,8 +77,8 @@ export function VendorInterface() {
   const navigate = useNavigate();
   const { products, addProduct, removeProduct, updateProduct, orders, currentUser, setCurrentUser, vendors, courierProfiles, users } = useApp();
 
-  React.useEffect(() => { if (!currentUser || currentUser.role !== 'vendor') navigate('/auth'); }, [currentUser, navigate]);
-  if (!currentUser || currentUser.role !== 'vendor') return null;
+  React.useEffect(() => { if (!currentUser || currentUser.role !== 'VENDOR') navigate('/auth'); }, [currentUser, navigate]);
+  if (!currentUser || currentUser.role !== 'VENDOR') return null;
 
   const [activeTab, setActiveTab] = useState('orders');
   const vendorId = currentUser.id;

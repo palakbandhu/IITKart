@@ -33,7 +33,7 @@ export interface User {
   name: string;
   email: string;
   password: string;
-  role: 'user' | 'vendor' | 'courier' | 'admin';
+  role: 'CUSTOMER' | 'VENDOR' | 'RIDER' | 'ADMIN';
   kartCoins: number;
   orderHistory: Order[];
   phone?: string;
@@ -254,22 +254,22 @@ const MOCK_VENDORS: Vendor[] = [
 ];
 
 const MOCK_USERS: User[] = [
-  { id: 'u1', name: 'Rahul Kumar', email: 'rahul@iitk.ac.in', password: 'password123', role: 'user', kartCoins: 150, orderHistory: [], phone: '9876543210', address: 'Hall 2, Room 201' },
-  { id: 'u2', name: 'Priya Singh', email: 'priya@iitk.ac.in', password: 'password123', role: 'user', kartCoins: 220, orderHistory: [], phone: '9876543211', address: 'Hall 5, Room 105' },
-  { id: 'u3', name: 'Amit Sharma', email: 'amit@iitk.ac.in', password: 'password123', role: 'user', kartCoins: 80, orderHistory: [], phone: '9876543212', address: 'Hall 3, Room 302' },
-  { id: 'u4', name: 'Neha Gupta', email: 'neha@iitk.ac.in', password: 'password123', role: 'user', kartCoins: 340, orderHistory: [], phone: '9876543213', address: 'Hall 7, Room 410' },
+  { id: 'u1', name: 'Rahul Kumar', email: 'rahul@iitk.ac.in', password: 'password123', role: 'CUSTOMER', kartCoins: 150, orderHistory: [], phone: '9876543210', address: 'Hall 2, Room 201' },
+  { id: 'u2', name: 'Priya Singh', email: 'priya@iitk.ac.in', password: 'password123', role: 'CUSTOMER', kartCoins: 220, orderHistory: [], phone: '9876543211', address: 'Hall 5, Room 105' },
+  { id: 'u3', name: 'Amit Sharma', email: 'amit@iitk.ac.in', password: 'password123', role: 'CUSTOMER', kartCoins: 80, orderHistory: [], phone: '9876543212', address: 'Hall 3, Room 302' },
+  { id: 'u4', name: 'Neha Gupta', email: 'neha@iitk.ac.in', password: 'password123', role: 'CUSTOMER', kartCoins: 340, orderHistory: [], phone: '9876543213', address: 'Hall 7, Room 410' },
   // Vendor users
-  { id: 'v1', name: 'Amul Parlour', email: 'amul@iitk.ac.in', password: 'password123', role: 'vendor', kartCoins: 0, orderHistory: [], phone: '9876543220', address: 'Campus Vendor Area' },
-  { id: 'v2', name: 'Photocopy Shop', email: 'photocopy@iitk.ac.in', password: 'password123', role: 'vendor', kartCoins: 0, orderHistory: [], phone: '9876543221', address: 'Campus Vendor Area' },
-  { id: 'v3', name: 'Wash & Iron', email: 'laundry@iitk.ac.in', password: 'password123', role: 'vendor', kartCoins: 0, orderHistory: [], phone: '9876543222', address: 'Campus Vendor Area' },
-  { id: 'v4', name: 'Chhota Bazaar', email: 'bazaar@iitk.ac.in', password: 'password123', role: 'vendor', kartCoins: 0, orderHistory: [], phone: '9876543223', address: 'Campus Vendor Area' },
-  { id: 'v5', name: 'Nescafe', email: 'nescafe@iitk.ac.in', password: 'password123', role: 'vendor', kartCoins: 0, orderHistory: [], phone: '9876543224', address: 'Campus Vendor Area' },
-  { id: 'v6', name: 'KC Shop', email: 'kc@iitk.ac.in', password: 'password123', role: 'vendor', kartCoins: 0, orderHistory: [], phone: '9876543225', address: 'Campus Vendor Area' },
+  { id: 'v1', name: 'Amul Parlour', email: 'amul@iitk.ac.in', password: 'password123', role: 'VENDOR', kartCoins: 0, orderHistory: [], phone: '9876543220', address: 'Campus Vendor Area' },
+  { id: 'v2', name: 'Photocopy Shop', email: 'photocopy@iitk.ac.in', password: 'password123', role: 'VENDOR', kartCoins: 0, orderHistory: [], phone: '9876543221', address: 'Campus Vendor Area' },
+  { id: 'v3', name: 'Wash & Iron', email: 'laundry@iitk.ac.in', password: 'password123', role: 'VENDOR', kartCoins: 0, orderHistory: [], phone: '9876543222', address: 'Campus Vendor Area' },
+  { id: 'v4', name: 'Chhota Bazaar', email: 'bazaar@iitk.ac.in', password: 'password123', role: 'VENDOR', kartCoins: 0, orderHistory: [], phone: '9876543223', address: 'Campus Vendor Area' },
+  { id: 'v5', name: 'Nescafe', email: 'nescafe@iitk.ac.in', password: 'password123', role: 'VENDOR', kartCoins: 0, orderHistory: [], phone: '9876543224', address: 'Campus Vendor Area' },
+  { id: 'v6', name: 'KC Shop', email: 'kc@iitk.ac.in', password: 'password123', role: 'VENDOR', kartCoins: 0, orderHistory: [], phone: '9876543225', address: 'Campus Vendor Area' },
   // Delivery partner users
-  { id: 'c1', name: 'Ravi Delivery', email: 'ravi@iitk.ac.in', password: 'password123', role: 'courier', kartCoins: 0, orderHistory: [], phone: '9876543230', address: 'Campus Area' },
-  { id: 'c2', name: 'Suresh Rider', email: 'suresh@iitk.ac.in', password: 'password123', role: 'courier', kartCoins: 0, orderHistory: [], phone: '9876543231', address: 'Campus Area' },
+  { id: 'c1', name: 'Ravi Delivery', email: 'ravi@iitk.ac.in', password: 'password123', role: 'RIDER', kartCoins: 0, orderHistory: [], phone: '9876543230', address: 'Campus Area' },
+  { id: 'c2', name: 'Suresh Rider', email: 'suresh@iitk.ac.in', password: 'password123', role: 'RIDER', kartCoins: 0, orderHistory: [], phone: '9876543231', address: 'Campus Area' },
   // Admin users
-  { id: 'admin1', name: 'Admin User', email: 'admin@iitk.ac.in', password: 'password123', role: 'admin', kartCoins: 0, orderHistory: [], phone: '9876543240', address: 'IIT Kanpur' },
+  { id: 'admin1', name: 'Admin User', email: 'admin@iitk.ac.in', password: 'password123', role: 'ADMIN', kartCoins: 0, orderHistory: [], phone: '9876543240', address: 'IIT Kanpur' },
 ];
 
 const MOCK_ORDERS: Order[] = [

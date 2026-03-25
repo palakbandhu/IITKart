@@ -45,8 +45,8 @@ export function AdminInterface() {
   const [searchUser, setSearchUser]   = useState('');
   const [searchVendor, setSearchVendor] = useState('');
 
-  React.useEffect(() => { if (!currentUser || currentUser.role !== 'admin') navigate('/auth'); }, [currentUser, navigate]);
-  if (!currentUser || currentUser.role !== 'admin') return null;
+  React.useEffect(() => { if (!currentUser || currentUser.role !== 'ADMIN') navigate('/auth'); }, [currentUser, navigate]);
+  if (!currentUser || currentUser.role !== 'ADMIN') return null;
 
   const metrics = useMemo(() => {
     const total      = orders.length;
@@ -55,7 +55,7 @@ export function AdminInterface() {
     const commission = gmv * 0.15;
     return {
       total, today, gmv, commission,
-      activeUsers:   users.filter(u => u.role === 'user').length,
+      activeUsers:   users.filter(u => u.role === 'CUSTOMER').length,
       activeVendors: vendors.filter(v => v.status === 'active').length,
       pendingComplaints: (complaints || []).filter(c => c.status === 'pending').length,
       successRate:   total > 0 ? (orders.filter(o => o.status === 'delivered').length / total * 100).toFixed(1) : 0,
@@ -242,9 +242,9 @@ export function AdminInterface() {
                             <td className="px-4 py-3 text-slate-400 text-xs">{user.email}</td>
                             <td className="px-4 py-3">
                               <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold capitalize ${
-                                user.role === 'admin'   ? 'bg-red-100 text-red-700' :
-                                user.role === 'vendor'  ? 'bg-emerald-100 text-emerald-700' :
-                                user.role === 'courier' ? 'bg-purple-100 text-purple-700' :
+                                user.role === 'ADMIN'   ? 'bg-red-100 text-red-700' :
+                                user.role === 'VENDOR'  ? 'bg-emerald-100 text-emerald-700' :
+                                user.role === 'RIDER' ? 'bg-purple-100 text-purple-700' :
                                 'bg-blue-100 text-blue-700'}`}>{user.role}</span>
                             </td>
                             <td className="px-4 py-3 font-bold text-amber-600 text-sm">{user.kartCoins || 0}</td>
