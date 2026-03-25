@@ -164,7 +164,7 @@ export function UserInterface() {
   const generateReceipt = (order: any) => {
     const vendor = vendors.find(v => v.id === order.vendorId);
     const total  = order.total + 30;
-    return `\n╔══════════════════════════════════╗\n║        ORDER RECEIPT            ║\n║           IITKart               ║\n╠══════════════════════════════════╣\n║ Order ID : ${order.id}\n║ Date     : ${new Date(order.date).toLocaleString('en-IN')}\n║ Vendor   : ${vendor?.name || 'Unknown'}\n║\n║ Item Total : ₹${order.total.toFixed(2)}\n║ Delivery   : ₹30.00\n║ ────────────────────────────────\n║ TOTAL      : ₹${total.toFixed(2)}\n║\n║ Payment : ${order.paymentMethod || 'UPI'} (${order.paymentStatus === 'completed' ? 'PAID ✓' : 'PENDING'})\n║ Coins   : +${order.kartCoinsEarned}\n║ Address : ${order.deliveryAddress}\n╚══════════════════════════════════╝`;
+    return `\n╔══════════════════════════════════╗\n║        ORDER RECEIPT            ║\n║           IITKart               ║\n╠══════════════════════════════════╣\n║ Order ID : ${order.id}\n║ Date     : ${new Date(order.createdAt || order.date).toLocaleString('en-IN')}\n║ Vendor   : ${vendor?.name || 'Unknown'}\n║\n║ Item Total : ₹${order.total.toFixed(2)}\n║ Delivery   : ₹30.00\n║ ────────────────────────────────\n║ TOTAL      : ₹${total.toFixed(2)}\n║\n║ Payment : ${order.paymentMethod || 'UPI'} (${order.paymentStatus === 'completed' ? 'PAID ✓' : 'PENDING'})\n║ Coins   : +${order.kartCoinsEarned}\n║ Address : ${order.deliveryAddress}\n╚══════════════════════════════════╝`;
   };
 
   const downloadReceipt = (order: any) => {
@@ -355,7 +355,7 @@ export function UserInterface() {
                             <span className="font-bold text-[#0F172A] dark:text-white text-sm font-mono">#{order.id}</span>
                             <StatusBadge status={order.status} />
                           </div>
-                          <p className="text-slate-400 text-xs">{vendor?.name} · {new Date(order.date).toLocaleDateString('en-IN')}</p>
+                          <p className="text-slate-400 text-xs">{vendor?.name} · {new Date(order.createdAt || order.date).toLocaleDateString('en-IN')}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-xl font-extrabold text-[#1E3A8A] dark:text-blue-300">₹{order.total + 30}</p>
@@ -469,7 +469,7 @@ export function UserInterface() {
                               {order.paymentStatus === 'completed' ? 'Paid' : 'Pending'}
                             </span>
                           </div>
-                          <p className="text-slate-400 text-xs">{new Date(order.date).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                          <p className="text-slate-400 text-xs">{new Date(order.createdAt || order.date).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>
                           {vendor && <p className="text-slate-500 text-xs mt-0.5"><Store className="inline w-3 h-3 mr-1" />{vendor.name}</p>}
                         </div>
                         <div className="text-right">
@@ -538,7 +538,7 @@ export function UserInterface() {
                       <div key={order.id} className="flex justify-between items-center py-2.5 border-b border-blue-50 dark:border-blue-900/20 last:border-0">
                         <div>
                           <p className="font-semibold text-[#0F172A] dark:text-white text-sm font-mono">#{order.id}</p>
-                          <p className="text-xs text-slate-400">{new Date(order.date).toLocaleDateString('en-IN')}</p>
+                          <p className="text-xs text-slate-400">{new Date(order.createdAt || order.date).toLocaleDateString('en-IN')}</p>
                         </div>
                         <span className="font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 text-sm">
                           <Coins className="w-4 h-4" />+{order.kartCoinsEarned}

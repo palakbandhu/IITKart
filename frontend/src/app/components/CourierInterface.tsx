@@ -1,24 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/app/contexts/AppContext';
+import api from '@/api/axios';
 import { Header } from '@/app/components/Header';
 import { Sidebar, SidebarItem } from '@/app/components/Sidebar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/app/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/app/components/ui/dialog';
 import { Label } from '@/app/components/ui/label';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import {
   Bike, Bell, DollarSign, TrendingUp, CheckCircle, XCircle, Clock,
   Star, MessageSquare, Settings, User, Mail, Phone, MapPin, Package,
-  Truck, AlertCircle, Store
+  Truck, AlertCircle, Store, Zap, RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
-
-interface DeliveryNotification {
-  id: string; orderId: string; from: string; to: string;
-  distance: string; earnings: number; items: number;
-  status: 'pending' | 'accepted' | 'completed'; time: string;
-}
 
 function MetricCard({ label, value, icon: Icon, colorClass }: { label: string; value: string | number; icon: any; colorClass: string }) {
   return (
@@ -30,82 +25,117 @@ function MetricCard({ label, value, icon: Icon, colorClass }: { label: string; v
   );
 }
 
-const NAV_ITEMS: SidebarItem[] = [
-  { id: 'deliveries', label: 'Requests',   icon: Bell      },
-  { id: 'active',     label: 'Active',     icon: Truck     },
-  { id: 'history',    label: 'History',    icon: TrendingUp},
-  { id: 'feedback',   label: 'Feedback',   icon: Star      },
-  { id: 'settings',   label: 'Settings',   icon: Settings  },
-];
-
 export function CourierInterface() {
   const navigate = useNavigate();
-  const { orders, currentUser, setCurrentUser, updateOrderStatus } = useApp();
+  const { currentUser, setCurrentUser } = useApp();
 
-  useEffect(() => { if (!currentUser || currentUser.role !== 'RIDER') navigate('/auth'); }, [currentUser, navigate]);
-  if (!currentUser || currentUser.role !== 'RIDER') return null;
+  useEffect(() => { if (!currentUser || (currentUser.role !== 'RIDER' && currentUser.role !== 'courier')) navigate('/auth'); }, [currentUser, navigate]);
+  if (!currentUser || (currentUser.role !== 'RIDER' && currentUser.role !== 'courier')) return null;
 
   const [activeTab, setActiveTab] = useState('deliveries');
-  const [notifications, setNotifications] = useState<DeliveryNotification[]>(
-    orders.filter(o => o.status === 'pending').slice(0, 3).map((order, idx) => ({
-      id: `notif-${order.id}`, orderId: order.id,
-      from: ['Campus Cafe', 'PrintHub', 'QuickWash'][idx % 3],
-      to: ['Hall 2, Room 201', 'Hall 5, Room 102', 'Hall 3, Room 305'][idx % 3],
-      distance: `${(0.5 + idx * 0.4 + 0.5).toFixed(1)} km`,
-      earnings: Math.floor(order.total * 0.15) + 20,
-      items: order.products.length, status: 'pending', time: 'Just now'
-    }))
-  );
-  const [completedDeliveries, setCompletedDeliveries] = useState<DeliveryNotification[]>([
-    { id: 'comp-1', orderId: 'ORD001', from: 'Campus Cafe',     to: 'Hall 2, Room 201', distance: '1.2 km', earnings: 45, items: 3, status: 'completed', time: '2 hours ago' },
-    { id: 'comp-2', orderId: 'ORD002', from: 'Stationery Store',to: 'Hall 4, Room 105', distance: '0.8 km', earnings: 35, items: 2, status: 'completed', time: '5 hours ago' },
-  ]);
+  
+  // Real data states
+  const [pendingOrders, setPendingOrders] = useState<any[]>([]);
+  const [activeDeliveries, setActiveDeliveries] = useState<any[]>([]);
+  const [historyOrders, setHistoryOrders] = useState<any[]>([]);
+  const [earningsData, setEarningsData] = useState<any>({});
+  
+  const [incomingPopup, setIncomingPopup] = useState<{ open: boolean, order: any }>({ open: false, order: null });
 
-  // Active deliveries this courier has accepted (from real orders)
-  const activeDeliveries = useMemo(() =>
-    notifications.filter(n => n.status === 'accepted'),
-    [notifications]
-  );
+  // Initial Data Fetch
+  const fetchAllData = async () => {
+    try {
+      const [pendRes, actRes, histRes, earnRes] = await Promise.all([
+        api.get('/riders/deliveries/pending').catch(e => ({ data: { data: [] }})),
+        api.get('/riders/deliveries/active').catch(e => ({ data: { data: [] }})),
+        api.get('/riders/deliveries/history').catch(e => ({ data: { data: [] }})),
+        api.get('/riders/earnings').catch(e => ({ data: { data: null }}))
+      ]);
+      setPendingOrders(pendRes?.data?.data || []);
+      setActiveDeliveries(actRes?.data?.data || []);
+      setHistoryOrders(histRes?.data?.data || []);
+      setEarningsData(earnRes?.data?.data || null);
+    } catch(err) { console.error('Failed to sync rider data:', err); }
+  };
 
-  const totalEarnings = useMemo(() => completedDeliveries.reduce((s, d) => s + d.earnings, 0), [completedDeliveries]);
-  const todayEarnings = useMemo(() => completedDeliveries.slice(0, 1).reduce((s, d) => s + d.earnings, 0), [completedDeliveries]);
-  const pendingCount  = notifications.filter(n => n.status === 'pending').length;
+  useEffect(() => {
+    if (currentUser?.role === 'RIDER' || currentUser?.role === 'courier') fetchAllData();
+  }, [currentUser]);
 
-  const courierFeedback = orders.filter(o => o.courierRating);
-  const avgRating = courierFeedback.length
-    ? (courierFeedback.reduce((s, o) => s + (o.courierRating || 0), 0) / courierFeedback.length).toFixed(1)
-    : '0.0';
+  // Real-time Polling for new broadcast deliveries
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.get('/riders/deliveries/pending');
+        const latestPending = res.data.data as any[];
+        
+        // Check for new orders that we haven't seen in our current state array
+        // Also don't show popup if they already have one open
+        setPendingOrders(prev => {
+          if (!incomingPopup.open && latestPending.length > 0) {
+            const newOrders = latestPending.filter(lo => !prev.find(p => p.id === lo.id));
+            if (newOrders.length > 0) {
+              // Found a brand new order broadcast!
+              const newest = newOrders[0];
+              setIncomingPopup({ open: true, order: newest });
+              // Play a sound or vibrate if available in real browsers natively here
+            }
+          }
+          return latestPending;
+        });
+      } catch (err) {}
+    }, 5000); // 5 second polling
+
+    return () => clearInterval(interval);
+  }, [incomingPopup.open]);
+
+  const pendingCount = pendingOrders.length;
+  const avgRating = "5.0"; // Placeholder
+  const courierFeedback: any[] = []; // Fallback for removed mock data
 
   const [issueDialog, setIssueDialog]       = useState({ open: false, orderId: '' });
   const [issueType, setIssueType]           = useState('');
   const [issuePriority, setIssuePriority]   = useState('medium');
   const [issueDescription, setIssueDescription] = useState('');
 
-  const handleAccept = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, status: 'accepted' } : n));
-    toast.success('Order accepted! Head to pickup location 🛵');
+  const handleAccept = async (orderId: string) => {
+    setIncomingPopup({ open: false, order: null });
+    try {
+      await api.post(`/riders/deliveries/${orderId}/accept`);
+      toast.success('Order accepted! Head to pickup location 🛵');
+      fetchAllData();
+      setActiveTab('active');
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Someone else might have claimed this delivery first.');
+      fetchAllData();
+    }
   };
 
-  const handleReject = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-    toast.info('Order declined');
+  const handleReject = (orderId: string) => {
+    setIncomingPopup({ open: false, order: null });
+    // Optimistically hide it from current view until next poll ensures it's fresh
+    setPendingOrders(prev => prev.filter(p => p.id !== orderId));
+    toast.info('Order declined / dismissed.');
   };
 
-  // ✅ Courier marks delivery as delivered
-  const handleMarkDelivered = (notif: DeliveryNotification) => {
-    // Update real order status if possible
-    const realOrder = orders.find(o => o.id === notif.orderId);
-    if (realOrder) updateOrderStatus(notif.orderId, 'delivered');
-
-    setNotifications(prev => {
-      setCompletedDeliveries(c => [{ ...notif, status: 'completed', time: 'Just now' }, ...c]);
-      return prev.filter(n => n.id !== notif.id);
-    });
-    toast.success(`Delivery marked as completed! ₹${notif.earnings} added to your earnings 💰`);
-    setActiveTab('history');
+  const handleMarkDelivered = async (orderId: string) => {
+    try {
+      await api.patch(`/riders/deliveries/${orderId}/delivered`);
+      toast.success('Delivery marked as completed! Earnings added to wallet 💰');
+      fetchAllData();
+      setActiveTab('history');
+    } catch (e: any) {
+      toast.error('Failed to mark delivered');
+    }
   };
 
-  const navItems = NAV_ITEMS.map(item => ({
+  const navItems = [
+    { id: 'deliveries', label: 'Requests',   icon: Bell      },
+    { id: 'active',     label: 'Active',     icon: Truck     },
+    { id: 'history',    label: 'History',    icon: TrendingUp},
+    { id: 'feedback',   label: 'Feedback',   icon: Star      },
+    { id: 'settings',   label: 'Settings',   icon: Settings  },
+  ].map(item => ({
     ...item,
     badge: item.id === 'deliveries' && pendingCount > 0 ? pendingCount :
            item.id === 'active' && activeDeliveries.length > 0 ? activeDeliveries.length : undefined,
@@ -128,9 +158,9 @@ export function CourierInterface() {
 
             {/* Metrics */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <MetricCard label="Total Earnings"   value={`₹${totalEarnings}`}          icon={DollarSign}  colorClass="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" />
-              <MetricCard label="Today's Earnings" value={`₹${todayEarnings}`}          icon={TrendingUp}  colorClass="bg-blue-100 dark:bg-blue-900/30 text-[#1E3A8A] dark:text-blue-400" />
-              <MetricCard label="Deliveries Done"  value={completedDeliveries.length}   icon={CheckCircle} colorClass="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400" />
+              <MetricCard label="Total Earnings"   value={`₹${earningsData?.totalEarnings || 0}`}          icon={DollarSign}  colorClass="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" />
+              <MetricCard label="Today's Earnings" value={`₹${earningsData?.todayEarnings || 0}`}          icon={TrendingUp}  colorClass="bg-blue-100 dark:bg-blue-900/30 text-[#1E3A8A] dark:text-blue-400" />
+              <MetricCard label="Deliveries Done"  value={earningsData?.totalDeliveries || 0}   icon={CheckCircle} colorClass="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400" />
               <MetricCard label="Avg Rating"       value={`${avgRating} ★`}            icon={Star}        colorClass="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400" />
             </div>
 
@@ -138,40 +168,43 @@ export function CourierInterface() {
             {activeTab === 'deliveries' && (
               <div className="space-y-4">
                 <div>
-                  <h1 className="text-2xl font-extrabold text-[#0F172A] dark:text-white mb-0.5" style={{ fontFamily: 'Syne, sans-serif' }}>Delivery Requests</h1>
+                  <h1 className="text-2xl font-extrabold text-[#0F172A] dark:text-white mb-0.5 flex items-center gap-2" style={{ fontFamily: 'Syne, sans-serif' }}>
+                    Delivery Requests
+                    <button onClick={fetchAllData} className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-[#7C3AED] transition-colors" title="Refresh Requests"><RefreshCw className="w-4 h-4" /></button>
+                  </h1>
                   <p className="text-slate-400 text-sm">{pendingCount} new request{pendingCount !== 1 ? 's' : ''} waiting</p>
                 </div>
-                {notifications.filter(n => n.status === 'pending').length === 0 ? (
+                {pendingOrders.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 text-center bg-white dark:bg-[#0F1E3A] rounded-2xl border border-blue-100 dark:border-blue-900/30">
                     <Bell className="w-12 h-12 text-blue-200 dark:text-blue-800 mb-4" />
                     <h3 className="font-bold text-slate-700 dark:text-slate-300 mb-1" style={{ fontFamily: 'Syne, sans-serif' }}>No pending requests</h3>
-                    <p className="text-slate-400 text-sm">New orders will appear here automatically</p>
+                    <p className="text-slate-400 text-sm">New orders will broadcast here automatically</p>
                   </div>
-                ) : notifications.filter(n => n.status === 'pending').map(notif => (
-                  <div key={notif.id} className="bg-white dark:bg-[#0F1E3A] rounded-2xl border border-blue-100 dark:border-blue-900/30 p-5 shadow-sm">
-                    <div className="flex items-start justify-between mb-4">
+                ) : pendingOrders.map(order => (
+                  <div key={order.id} className="bg-white dark:bg-[#0F1E3A] rounded-2xl border border-blue-100 dark:border-blue-900/30 p-5 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-indigo-500/20 to-purple-500/0 rounded-bl-[100px]" />
+                    <div className="flex items-start justify-between mb-4 relative z-10">
                       <div>
-                        <p className="font-mono font-bold text-slate-400 text-xs mb-1">#{notif.orderId}</p>
+                        <p className="font-mono font-bold text-slate-400 text-xs mb-1">#{order.id}</p>
                         <div className="flex items-center gap-3 text-sm">
-                          <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-semibold"><Store className="w-4 h-4 text-[#1E3A8A]" />{notif.from}</span>
+                          <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-semibold"><Store className="w-4 h-4 text-[#1E3A8A]" />{order.vendor?.name}</span>
                           <span className="text-slate-300">→</span>
-                          <span className="flex items-center gap-1.5 text-slate-500"><MapPin className="w-4 h-4 text-[#F97316]" />{notif.to}</span>
+                          <span className="flex items-center gap-1.5 text-slate-500"><MapPin className="w-4 h-4 text-[#F97316]" />{order.deliveryAddress}</span>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">₹{notif.earnings}</p>
-                        <p className="text-xs text-slate-400">{notif.distance} · {notif.items} item{notif.items > 1 ? 's' : ''}</p>
+                        <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">₹{order.estimatedEarnings}</p>
                       </div>
                     </div>
-                    <p className="text-xs text-slate-400 flex items-center gap-1 mb-4"><Clock className="w-3 h-3" />{notif.time}</p>
+                    <p className="text-xs text-slate-400 flex items-center gap-1 mb-4"><Clock className="w-3 h-3" />{new Date(order.createdAt).toLocaleTimeString('en-IN')}</p>
                     <div className="flex gap-3">
-                      <button onClick={() => handleReject(notif.id)}
+                      <button onClick={() => handleReject(order.id)}
                         className="flex-1 h-10 border-2 border-red-200 dark:border-red-900/30 text-red-500 font-bold rounded-xl text-sm hover:bg-red-50 transition-colors flex items-center justify-center gap-2">
-                        <XCircle className="w-4 h-4" /> Decline
+                        <XCircle className="w-4 h-4" /> Ignore
                       </button>
-                      <button onClick={() => handleAccept(notif.id)}
+                      <button onClick={() => handleAccept(order.id)}
                         className="flex-1 h-10 bg-gradient-to-r from-[#7C3AED] to-[#6D28D9] text-white font-bold rounded-xl text-sm transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2">
-                        <CheckCircle className="w-4 h-4" /> Accept
+                        <CheckCircle className="w-4 h-4" /> Accept Delivery
                       </button>
                     </div>
                   </div>
@@ -183,7 +216,12 @@ export function CourierInterface() {
             {activeTab === 'active' && (
               <div className="space-y-4">
                 <div>
-                  <h1 className="text-2xl font-extrabold text-[#0F172A] dark:text-white mb-0.5" style={{ fontFamily: 'Syne, sans-serif' }}>Active Deliveries</h1>
+                  <div className="flex items-center justify-between mb-4">
+                  <h1 className="text-2xl font-extrabold text-[#0F172A] dark:text-white flex items-center gap-2" style={{ fontFamily: 'Syne, sans-serif' }}>
+                    Active Deliveries
+                    <button onClick={fetchAllData} className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-[#7C3AED] transition-colors" title="Refresh Active"><RefreshCw className="w-4 h-4" /></button>
+                  </h1>
+                </div>
                   <p className="text-slate-400 text-sm">{activeDeliveries.length} delivery{activeDeliveries.length !== 1 ? 's' : ''} in progress</p>
                 </div>
                 {activeDeliveries.length === 0 ? (
@@ -192,8 +230,8 @@ export function CourierInterface() {
                     <h3 className="font-bold text-slate-700 dark:text-slate-300 mb-1" style={{ fontFamily: 'Syne, sans-serif' }}>No active deliveries</h3>
                     <p className="text-slate-400 text-sm">Accept a request from the Delivery Requests tab</p>
                   </div>
-                ) : activeDeliveries.map(notif => (
-                  <div key={notif.id} className="bg-white dark:bg-[#0F1E3A] rounded-2xl border-2 border-purple-200 dark:border-purple-800/50 shadow-md shadow-purple-100 dark:shadow-purple-900/20 overflow-hidden">
+                ) : activeDeliveries.map(order => (
+                  <div key={order.id} className="bg-white dark:bg-[#0F1E3A] rounded-2xl border-2 border-purple-200 dark:border-purple-800/50 shadow-md shadow-purple-100 dark:shadow-purple-900/20 overflow-hidden">
                     {/* Live banner */}
                     <div className="bg-gradient-to-r from-[#7C3AED] to-[#6D28D9] px-4 py-2.5 flex items-center gap-2">
                       <span className="w-2 h-2 bg-white rounded-full animate-ping" />
@@ -202,15 +240,14 @@ export function CourierInterface() {
                     <div className="p-5 space-y-4">
                       <div className="flex items-start justify-between">
                         <div>
-                          <p className="font-mono text-slate-400 text-xs mb-1">#{notif.orderId}</p>
+                          <p className="font-mono text-slate-400 text-xs mb-1">#{order.id}</p>
                           <div className="space-y-1 text-sm">
-                            <p className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-semibold"><Store className="w-4 h-4 text-[#1E3A8A]" /> Pickup: {notif.from}</p>
-                            <p className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300"><MapPin className="w-4 h-4 text-[#F97316]" /> Drop: {notif.to}</p>
+                            <p className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-semibold"><Store className="w-4 h-4 text-[#1E3A8A]" /> Pickup: {order.vendor?.name}</p>
+                            <p className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300"><MapPin className="w-4 h-4 text-[#F97316]" /> Drop: {order.deliveryAddress}</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">₹{notif.earnings}</p>
-                          <p className="text-xs text-slate-400">{notif.distance}</p>
+                          <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">₹{order.estimatedEarnings}</p>
                         </div>
                       </div>
 
@@ -219,14 +256,14 @@ export function CourierInterface() {
                         <p className="text-sm font-semibold text-purple-700 dark:text-purple-300 mb-1">Once you've handed over the package:</p>
                         <p className="text-xs text-purple-500 dark:text-purple-400 mb-3">Tap below to confirm delivery and receive your earnings.</p>
                         <button
-                          onClick={() => handleMarkDelivered(notif)}
+                          onClick={() => handleMarkDelivered(order.id)}
                           className="w-full h-11 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-emerald-500/25 active:scale-95 flex items-center justify-center gap-2"
                         >
                           <CheckCircle className="w-4 h-4" /> Mark as Delivered
                         </button>
                       </div>
 
-                      <button onClick={() => setIssueDialog({ open: true, orderId: notif.orderId })}
+                      <button onClick={() => setIssueDialog({ open: true, orderId: order.id })}
                         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-amber-200 dark:border-amber-900/30 text-amber-600 text-xs font-bold hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-colors">
                         <AlertCircle className="w-3.5 h-3.5" /> Report an Issue
                       </button>
@@ -241,22 +278,19 @@ export function CourierInterface() {
               <div className="space-y-3">
                 <div>
                   <h1 className="text-2xl font-extrabold text-[#0F172A] dark:text-white mb-0.5" style={{ fontFamily: 'Syne, sans-serif' }}>Delivery History</h1>
-                  <p className="text-slate-400 text-sm">{completedDeliveries.length} completed deliveries</p>
+                  <p className="text-slate-400 text-sm">{historyOrders.length} completed deliveries</p>
                 </div>
-                {completedDeliveries.map(d => (
+                {historyOrders.map(d => (
                   <div key={d.id} className="bg-white dark:bg-[#0F1E3A] rounded-2xl border border-blue-100 dark:border-blue-900/30 p-4 shadow-sm flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
                       <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <p className="font-semibold text-[#0F172A] dark:text-white text-sm truncate">{d.from}</p>
-                        <span className="text-slate-300 text-xs">→</span>
-                        <p className="text-slate-500 text-xs truncate">{d.to}</p>
+                        <p className="font-semibold text-[#0F172A] dark:text-white text-sm truncate">{d.deliveryAddress}</p>
                       </div>
-                      <p className="text-xs text-slate-400">{d.distance} · {d.items} items · {d.time}</p>
+                      <p className="text-xs text-slate-400">{new Date(d.updatedAt).toLocaleTimeString('en-IN')}</p>
                     </div>
-                    <p className="font-extrabold text-emerald-600 dark:text-emerald-400 text-sm flex-shrink-0">+₹{d.earnings}</p>
                   </div>
                 ))}
               </div>
@@ -363,6 +397,51 @@ export function CourierInterface() {
               }}
               className="w-full h-11 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white font-bold rounded-xl transition-all active:scale-95"
             >Submit Report</button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Incoming Broadcast POPUP Modal! */}
+      <Dialog open={incomingPopup.open} onOpenChange={() => {}}>
+        <DialogContent className="bg-white dark:bg-[#0F1E3A] border-blue-100 dark:border-blue-900/30 rounded-2xl max-w-sm overflow-hidden p-0">
+          <div className="bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-5 flex items-center justify-center gap-3">
+            <div className="relative">
+              <span className="absolute inset-0 bg-white/40 rounded-full animate-ping" />
+              <Zap className="w-6 h-6 text-white relative z-10 animate-bounce" />
+            </div>
+            <h2 className="text-white font-extrabold text-xl font-['Syne']">New Delivery Alert!</h2>
+          </div>
+          
+          <div className="px-6 py-5 space-y-4">
+            {incomingPopup.order && (
+              <>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+                    <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Pickup</span>
+                    <span className="text-slate-800 dark:text-slate-200 font-bold">{incomingPopup.order.vendor?.name}</span>
+                  </div>
+                  <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+                    <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Dropoff</span>
+                    <span className="text-slate-800 dark:text-slate-200 font-bold max-w-[150px] truncate">{incomingPopup.order.deliveryAddress}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Guaranteed Pay</span>
+                    <span className="text-emerald-500 dark:text-emerald-400 font-extrabold text-2xl">₹{incomingPopup.order.estimatedEarnings}</span>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            <DialogFooter className="flex gap-3 sm:justify-center pt-2">
+              <button onClick={() => handleReject(incomingPopup.order?.id)}
+                className="flex-1 h-11 border-2 border-red-200 dark:border-red-900/30 text-red-500 font-bold rounded-xl text-sm hover:bg-red-50 transition-colors flex items-center justify-center gap-2">
+                Ignore
+              </button>
+              <button onClick={() => handleAccept(incomingPopup.order?.id)}
+                className="flex-1 h-11 bg-gradient-to-r from-[#7C3AED] to-[#6D28D9] text-white font-bold rounded-xl text-sm transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2">
+                Accept Now
+              </button>
+            </DialogFooter>
           </div>
         </DialogContent>
       </Dialog>

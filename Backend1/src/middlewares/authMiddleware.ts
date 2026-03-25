@@ -38,9 +38,14 @@ export const verifyToken = async (req: AuthRequest, res: Response, next: NextFun
   }
 };
 
-export const requireRole = (...roles: Role[]) => {
+export const requireRole = (...roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!req.user) {
+      return next(new AppError('You do not have permission to perform this action', 403));
+    }
+    const userRole = req.user.role.toLowerCase() === 'rider' ? 'courier' : req.user.role.toLowerCase();
+    
+    if (!roles.includes(userRole)) {
       return next(new AppError('You do not have permission to perform this action', 403));
     }
     next();

@@ -32,7 +32,7 @@ export interface User {
   name: string;
   email: string;
   password: string;
-  role: 'CUSTOMER' | 'VENDOR' | 'RIDER' | 'ADMIN';
+  role: 'CUSTOMER' | 'user' | 'VENDOR' | 'vendor' | 'RIDER' | 'courier' | 'ADMIN' | 'admin';
   kartCoins: number;
   orderHistory: Order[];
   phone?: string;
@@ -49,8 +49,11 @@ export interface Order {
   total: number;
   status: 'pending' | 'accepted' | 'picked' | 'delivered' | 'cancelled';
   courierId?: string;
+  courier?: any;
   kartCoinsEarned: number;
   date: string;
+  createdAt?: string;
+  items?: any[];
   rating?: number;
   feedback?: string;
   courierRating?: number;
@@ -161,6 +164,7 @@ interface AppContextType {
   register: (name: string, email: string, password: string, role: User['role'], phone?: string, address?: string) => Promise<User | null>;
   
   orders: Order[];
+  refreshOrders: () => Promise<void>;
   addOrder: (order: Order) => void;
   updateOrderStatus: (orderId: string, status: Order['status']) => void;
   addOrderRating: (orderId: string, rating: number, feedback: string) => void;
@@ -346,18 +350,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   React.useEffect(() => {
+    let intervalId: any;
+
+    const fetchOrders = () => {
+      if (!currentUser) return;
+      if (currentUser.role === 'CUSTOMER' || currentUser.role === 'user') {
+        api.get('/users/orders')
+          .then(res => setOrders(res.data.data))
+          .catch(err => console.error("Failed to sync user orders:", err));
+      } else if (currentUser.role === 'VENDOR' || currentUser.role === 'vendor') {
+        api.get('/vendors/me/orders')
+          .then(res => setOrders(res.data.data))
+          .catch(err => console.error("Failed to sync vendor orders:", err));
+      }
+    };
+
     if (currentUser) {
-      api.get('/users/orders')
-        .then(res => setOrders(res.data.data))
-        .catch(err => console.error("Failed to load orders:", err));
-      
-      api.get('/users/complaints')
-        .then(res => setComplaints(res.data.data))
-        .catch(err => console.error("Failed to load complaints:", err));
+      if (currentUser.role === 'CUSTOMER' || currentUser.role === 'user') {
+        api.get('/users/complaints').then(res => setComplaints(res.data.data));
+      }
+      fetchOrders();
+      intervalId = setInterval(fetchOrders, 3000); // Poll every 3 seconds for instant updates
     } else {
       setOrders([]);
       setComplaints([]);
     }
+
+    return () => clearInterval(intervalId);
   }, [currentUser]);
 
   const addProduct = async (product: Product) => {
@@ -568,6 +587,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCart([]);
   };
 
+  const refreshOrders = async () => {
+    if (!currentUser) return;
+    if (currentUser.role === 'CUSTOMER' || currentUser.role === 'user') {
+      try {
+        const res = await api.get('/users/orders');
+        setOrders(res.data.data);
+      } catch(e) {}
+    } else if (currentUser.role === 'VENDOR' || currentUser.role === 'vendor') {
+      try {
+        const res = await api.get('/vendors/me/orders');
+        setOrders(res.data.data);
+      } catch(e) {}
+    }
+  };
+
   const login = async (email: string, password: string) => {
     try {
       const response = await api.post('/auth/login', { email, password });
@@ -688,6 +722,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateUserCoins,
         login,
         register,
+        clearCart,
+        refreshOrders,
         orders,
         addOrder,
         updateOrderStatus,
@@ -707,7 +743,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addToCart,
         removeFromCart,
         updateCartQuantity,
-        clearCart,
         users,
         updateUser,
         addUser,

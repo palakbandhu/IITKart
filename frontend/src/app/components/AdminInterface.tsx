@@ -46,8 +46,8 @@ export function AdminInterface() {
   const [searchUser, setSearchUser]   = useState('');
   const [searchVendor, setSearchVendor] = useState('');
 
-  React.useEffect(() => { if (!currentUser || currentUser.role !== 'ADMIN') navigate('/auth'); }, [currentUser, navigate]);
-  if (!currentUser || currentUser.role !== 'ADMIN') return null;
+  React.useEffect(() => { if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'admin')) navigate('/auth'); }, [currentUser, navigate]);
+  if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'admin')) return null;
 
   const [stats, setStats] = useState<any>(null);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);

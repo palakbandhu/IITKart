@@ -53,14 +53,18 @@ export function AuthPage() {
     address: '',
   });
 
-  const navigateToRole = (role: AppRole) => {
-    const map: Record<AppRole, string> = {
+  const navigateToRole = (role: string) => {
+    const map: Record<string, string> = {
       CUSTOMER: '/user',
+      user: '/user',
       VENDOR: '/vendor',
+      vendor: '/vendor',
       RIDER: '/courier',
+      courier: '/courier',
       ADMIN: '/admin',
+      admin: '/admin',
     };
-    navigate(map[role]);
+    navigate(map[role] || '/');
   };
 
   const handleLogin = async (e: React.FormEvent) => {
