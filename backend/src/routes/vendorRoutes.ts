@@ -1,13 +1,15 @@
-import express from "express";
-import { toggleShopStatus, updateShopSettings, getVendorDashboard, getVendorAnalytics } from "../controllers/vendorController.js";
-import { protect, authorize } from "../middleware/authMiddleware.js";
-import { Role } from "@prisma/client";
+import express from 'express';
+import { toggleShopStatus, updateShopSettings, getVendorAnalytics } from '../controllers/vendorController.js';
+import { protect, authorize } from '../middleware/authMiddleware.js';
+import { Role } from '@prisma/client';
 
 const router = express.Router();
 
-router.patch("/toggle-status", protect, authorize(Role.VENDOR), toggleShopStatus);
-router.put("/settings",   protect, authorize(Role.VENDOR), updateShopSettings);
-router.get("/dashboard",  protect, authorize(Role.VENDOR), getVendorDashboard);
-router.get("/analytics",  protect, authorize(Role.VENDOR), getVendorAnalytics);
+router.use(protect);
+router.use(authorize(Role.VENDOR));
+
+router.patch('/toggle-status', toggleShopStatus);
+router.put('/settings',        updateShopSettings);
+router.get('/analytics',       getVendorAnalytics);
 
 export default router;

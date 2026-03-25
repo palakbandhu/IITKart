@@ -7,7 +7,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enums for Roles
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
 enum Role {
   CUSTOMER
   VENDOR
@@ -24,6 +25,29 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  UPI
+  CARD
+  CASH_ON_DELIVERY
+  KART_COINS
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  CLOSED
+}
+
+// ─── Core Models ──────────────────────────────────────────────────────────────
+
 model User {
   id              Int      @id @default(autoincrement())
   email           String   @unique
@@ -36,11 +60,20 @@ model User {
   roomNumber      String?
   profileImageUrl String?
 
+  // OTP / password reset
+  otpHash       String?
+  otpExpiry     DateTime?
+  otpAttempts   Int       @default(0)
+
   // Relations
   orders        Order[]        @relation("CustomerOrders")
   vendorProfile VendorProfile?
   riderProfile  RiderProfile?
   cart          Cart?
+  wallet        KartWallet?
+  reviews       Review[]
+  complaints    Complaint[]
+  payments      Payment[]
 }
 
 model VendorProfile {
@@ -50,10 +83,19 @@ model VendorProfile {
   openingTime String
   closingTime String
   description String?
+  address     String?
+  contactNo   String?
   isOpen      Boolean @default(true)
+  imageUrl    String?
+
+  // Aggregated rating (updated on each review)
+  averageRating Float @default(0)
+  totalReviews  Int   @default(0)
+  totalEarnings Float @default(0)
 
   orders   Order[]
   products Product[]
+  reviews  Review[]
 
   userId Int  @unique
   user   User @relation(fields: [userId], references: [id])
@@ -66,6 +108,7 @@ model Product {
   price       Float
   stock       Int      @default(0)
   imageUrl    String?
+  category    String?
   isAvailable Boolean  @default(true)
 
   vendorId Int
@@ -73,28 +116,36 @@ model Product {
 
   orderItems OrderItem[]
   cartItems  CartItem[]
+  reviews    Review[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([name])
   @@index([vendorId])
+  @@index([category])
 }
 
 model RiderProfile {
-  id          Int     @id @default(autoincrement())
-  vehicleType String
-  vehicleNo   String?
-  isAvailable Boolean @default(true)
-  
-  totalEarnings   Float   @default(0)
-  totalDeliveries Int     @default(0)
+  id             Int     @id @default(autoincrement())
+  vehicleType    String
+  vehicleNo      String?
+  isAvailable    Boolean @default(true)
+  totalDeliveries Int    @default(0)
+  totalEarnings   Float  @default(0)
+
+  // Aggregated rating
+  averageRating Float @default(0)
+  totalReviews  Int   @default(0)
 
   deliveries Order[]
+  reviews    Review[]
 
   userId Int  @unique
   user   User @relation(fields: [userId], references: [id])
 }
+
+// ─── Order ────────────────────────────────────────────────────────────────────
 
 model Order {
   id          Int         @id @default(autoincrement())
@@ -106,13 +157,21 @@ model Order {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
+  // Delivery address snapshot (captured at order time)
+  deliveryAddress String?
+
   customer User          @relation("CustomerOrders", fields: [customerId], references: [id])
   vendor   VendorProfile @relation(fields: [vendorId], references: [id])
   rider    RiderProfile? @relation(fields: [riderId], references: [id])
 
-  items OrderItem[]
+  items     OrderItem[]
+  payment   Payment?
+  review    Review?
+  complaint Complaint?
 
   @@index([customerId])
+  @@index([vendorId])
+  @@index([riderId])
 }
 
 model OrderItem {
@@ -126,6 +185,8 @@ model OrderItem {
   product Product @relation(fields: [productId], references: [id])
 }
 
+// ─── Cart ─────────────────────────────────────────────────────────────────────
+
 model Cart {
   id        Int        @id @default(autoincrement())
   userId    Int        @unique
@@ -136,13 +197,104 @@ model Cart {
 }
 
 model CartItem {
-  id        Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   cartId    Int
-  cart      Cart    @relation(fields: [cartId], references: [id])
+  cart      Cart     @relation(fields: [cartId], references: [id])
   productId Int
-  product   Product @relation(fields: [productId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
   quantity  Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
+// ─── Payment ──────────────────────────────────────────────────────────────────
+
+model Payment {
+  id              Int           @id @default(autoincrement())
+  orderId         Int           @unique
+  userId          Int
+  amount          Float
+  method          PaymentMethod
+  status          PaymentStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Razorpay fields (null for COD)
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  razorpaySignature String?
+
+  // Kart Coins used in this payment
+  coinsUsed         Int?
+
+  order  Order @relation(fields: [orderId], references: [id])
+  user   User  @relation(fields: [userId], references: [id])
+}
+
+// ─── Kart Coins Wallet ────────────────────────────────────────────────────────
+
+model KartWallet {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  balance   Int      @default(0)   // stored as integer coins
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User              @relation(fields: [userId], references: [id])
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id          Int      @id @default(autoincrement())
+  walletId    Int
+  amount      Int      // positive = credit, negative = debit
+  description String
+  orderId     Int?
+  createdAt   DateTime @default(now())
+
+  wallet KartWallet @relation(fields: [walletId], references: [id])
+}
+
+// ─── Reviews ──────────────────────────────────────────────────────────────────
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  rating    Int      // 1–5
+  comment   String?
+  createdAt DateTime @default(now())
+
+  // Author
+  userId    Int
+  user      User @relation(fields: [userId], references: [id])
+
+  // Target (at least one must be set)
+  orderId   Int?          @unique
+  order     Order?        @relation(fields: [orderId], references: [id])
+
+  vendorId  Int?
+  vendor    VendorProfile? @relation(fields: [vendorId], references: [id])
+
+  riderId   Int?
+  rider     RiderProfile?  @relation(fields: [riderId], references: [id])
+
+  productId Int?
+  product   Product?       @relation(fields: [productId], references: [id])
+}
+
+// ─── Complaints ───────────────────────────────────────────────────────────────
+
+model Complaint {
+  id          Int             @id @default(autoincrement())
+  subject     String
+  description String
+  status      ComplaintStatus @default(OPEN)
+  resolution  String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  userId  Int
+  user    User   @relation(fields: [userId], references: [id])
+
+  orderId Int?   @unique
+  order   Order? @relation(fields: [orderId], references: [id])
+}

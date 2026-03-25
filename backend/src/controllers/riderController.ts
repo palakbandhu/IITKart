@@ -1,299 +1,151 @@
-
 import type { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import type { AuthRequest } from '../middleware/authMiddleware.js';
+import { prisma } from '../lib/prisma.js';
+import { AppError, asyncHandler } from '../middleware/errorMiddleware.js';
 
-const prisma = new PrismaClient();
+// ─── PATCH /api/riders/status ──────────────────────────────────────────────────
+export const toggleAvailability = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { isAvailable } = req.body;
+  if (typeof isAvailable !== 'boolean') throw new AppError(400, '`isAvailable` must be a boolean');
 
-// @desc    Toggle rider availability status
-// @route   PATCH /api/riders/status
-export const toggleAvailability = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { isAvailable } = req.body;
+  const riderProfile = await prisma.riderProfile.findUnique({ where: { userId: req.user.id } });
+  if (!riderProfile) throw new AppError(404, 'Rider profile not found');
 
-    if (typeof isAvailable !== 'boolean') {
-      res.status(400).json({ message: '`isAvailable` must be a boolean value' });
-      return;
-    }
+  const updated = await prisma.riderProfile.update({
+    where: { userId: req.user.id },
+    data: { isAvailable },
+  });
 
-    const riderProfile = await prisma.riderProfile.findUnique({
-      where: { userId: req.user!.id },
-    });
+  res.json({
+    message: `You are now ${isAvailable ? 'available' : 'unavailable'} for deliveries`,
+    riderProfile: updated,
+  });
+});
 
-    if (!riderProfile) {
-      res.status(404).json({ message: 'Rider profile not found' });
-      return;
-    }
-
-    const updatedProfile = await prisma.riderProfile.update({
-      where: { userId: req.user!.id },
-      data: { isAvailable },
-    });
-
-    res.status(200).json({
-      message: `You are now ${isAvailable ? 'available' : 'unavailable'} for deliveries`,
-      riderProfile: updatedProfile,
-    });
-  } catch (error) {
-    console.error('Toggle Availability Error:', error);
-    res.status(500).json({ message: 'Server error while updating availability', error });
+// ─── GET /api/riders/deliveries/available ─────────────────────────────────────
+export const getAvailableDeliveries = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const riderProfile = await prisma.riderProfile.findUnique({ where: { userId: req.user.id } });
+  if (!riderProfile) throw new AppError(404, 'Rider profile not found');
+  if (!riderProfile.isAvailable) {
+    throw new AppError(403, 'Toggle your status to available first.');
   }
-};
 
-// @desc    Get all available (unassigned, READY) deliveries
-// @route   GET /api/riders/deliveries/available
-export const getAvailableDeliveries = async (req: AuthRequest, res: Response): Promise<void> => {
+  const availableOrders = await prisma.order.findMany({
+    where: { status: 'READY', riderId: null },
+    include: {
+      items: { include: { product: { select: { name: true, price: true } } } },
+      customer: { select: { id: true, name: true, phone: true, hostel: true, roomNumber: true } },
+      vendor:   { select: { shopName: true, address: true } },
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  res.json({ count: availableOrders.length, orders: availableOrders });
+});
+
+// ─── PATCH /api/riders/deliveries/:id/accept ──────────────────────────────────
+export const acceptDelivery = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const orderId = parseInt(req.params.id as string);
+  if (isNaN(orderId)) throw new AppError(400, 'Invalid order ID');
+
+  const riderProfile = await prisma.riderProfile.findUnique({ where: { userId: req.user.id } });
+  if (!riderProfile) throw new AppError(404, 'Rider profile not found');
+  if (!riderProfile.isAvailable) throw new AppError(403, 'You must be available to accept deliveries');
+
   try {
-    const riderProfile = await prisma.riderProfile.findUnique({
-      where: { userId: req.user!.id },
-    });
-
-    if (!riderProfile) {
-      res.status(404).json({ message: 'Rider profile not found' });
-      return;
-    }
-
-    if (!riderProfile.isAvailable) {
-      res.status(403).json({
-        message: 'You are currently marked as unavailable. Toggle your status to view deliveries.',
-      });
-      return;
-    }
-
-    const availableOrders = await prisma.order.findMany({
-      where: {
-        status: 'READY',
-        riderId: null,
-      },
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId, riderId: null, status: 'READY' },
+      data:  { riderId: riderProfile.id, status: 'PICKED_UP' },
       include: {
-        items: true,
-        customer: {
-          select: { id: true, name: true, phone: true },
-        },
+        items:    { include: { product: { select: { name: true } } } },
+        customer: { select: { id: true, name: true, phone: true, hostel: true, roomNumber: true } },
+        vendor:   { select: { shopName: true, address: true } },
       },
-      orderBy: { createdAt: 'asc' },
     });
-
-    res.status(200).json({
-      message: 'Available deliveries fetched successfully',
-      count: availableOrders.length,
-      orders: availableOrders,
-    });
-  } catch (error) {
-    console.error('Get Available Deliveries Error:', error);
-    res.status(500).json({ message: 'Server error while fetching deliveries', error });
+    res.json({ message: 'Delivery accepted', order: updatedOrder });
+  } catch (e: any) {
+    if (e?.code === 'P2025') {
+      throw new AppError(409, 'Order already accepted by another rider or not in READY state.');
+    }
+    throw e;
   }
-};
+});
 
-// @desc    Accept a delivery (concurrency-safe)
-// @route   PATCH /api/riders/deliveries/:id/accept
-export const acceptDelivery = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const orderId = parseInt(req.params.id as string);
+// ─── PATCH /api/riders/deliveries/:id/complete ────────────────────────────────
+export const completeDelivery = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const orderId = parseInt(req.params.id as string);
+  if (isNaN(orderId)) throw new AppError(400, 'Invalid order ID');
 
-    if (isNaN(orderId)) {
-      res.status(400).json({ message: 'Invalid order ID' });
-      return;
-    }
+  const riderProfile = await prisma.riderProfile.findUnique({ where: { userId: req.user.id } });
+  if (!riderProfile) throw new AppError(404, 'Rider profile not found');
 
-    const riderProfile = await prisma.riderProfile.findUnique({
-      where: { userId: req.user!.id },
-    });
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order)                          throw new AppError(404, 'Order not found');
+  if (order.riderId !== riderProfile.id) throw new AppError(403, 'This delivery is not assigned to you');
+  if (order.status === 'DELIVERED')    throw new AppError(400, 'Order already marked as delivered');
+  if (order.status !== 'PICKED_UP')    throw new AppError(400, `Cannot complete an order with status: ${order.status}`);
 
-    if (!riderProfile) {
-      res.status(404).json({ message: 'Rider profile not found' });
-      return;
-    }
+  // Mark order delivered + increment rider stats in a transaction
+  const RIDER_EARNING_PCT = 0.15; // Rider earns 15% of order total
+  const earning = parseFloat((order.totalAmount * RIDER_EARNING_PCT).toFixed(2));
 
-    if (!riderProfile.isAvailable) {
-      res.status(403).json({ message: 'You must be available to accept deliveries' });
-      return;
-    }
-
-    try {
-      const updatedOrder = await prisma.order.update({
-        where: {
-          id: orderId,
-          riderId: null,
-          status: 'READY',
-        },
-        data: {
-          riderId: riderProfile.id,
-          status: 'PICKED_UP',
-        },
-        include: {
-          items: true,
-          customer: {
-            select: { id: true, name: true, phone: true },
-          },
-        },
-      });
-
-      res.status(200).json({
-        message: 'Delivery accepted successfully',
-        order: updatedOrder,
-      });
-    } catch (prismaError: any) {
-      if (prismaError?.code === 'P2025') {
-        res.status(409).json({
-          message: 'Order is no longer available. It may have been accepted by another rider or is not in READY state.',
-        });
-        return;
-      }
-      throw prismaError;
-    }
-  } catch (error) {
-    console.error('Accept Delivery Error:', error);
-    res.status(500).json({ message: 'Server error while accepting delivery', error });
-  }
-};
-
-// @desc    Mark an assigned delivery as DELIVERED and credit rider earnings (10% of order)
-// @route   PATCH /api/riders/deliveries/:id/complete
-export const completeDelivery = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const orderId = parseInt(req.params.id as string);
-
-    if (isNaN(orderId)) {
-      res.status(400).json({ message: 'Invalid order ID' });
-      return;
-    }
-
-    const riderProfile = await prisma.riderProfile.findUnique({
-      where: { userId: req.user!.id },
-    });
-
-    if (!riderProfile) {
-      res.status(404).json({ message: 'Rider profile not found' });
-      return;
-    }
-
-    const order = await prisma.order.findUnique({
+  const [updatedOrder] = await prisma.$transaction([
+    prisma.order.update({
       where: { id: orderId },
-    });
-
-    if (!order) {
-      res.status(404).json({ message: 'Order not found' });
-      return;
-    }
-
-    if (order.riderId !== riderProfile.id) {
-      res.status(403).json({
-        message: 'Forbidden. You can only complete deliveries assigned to you.',
-      });
-      return;
-    }
-
-    if (order.status === 'DELIVERED') {
-      res.status(400).json({ message: 'Order has already been marked as delivered' });
-      return;
-    }
-
-    if (order.status !== 'PICKED_UP') {
-      res.status(400).json({
-        message: `Cannot complete order with status: ${order.status}. Order must be PICKED_UP.`,
-      });
-      return;
-    }
-
-    // Rider earns 10% of the order total
-    const deliveryEarning = parseFloat((order.totalAmount * 0.10).toFixed(2));
-
-    // Use a transaction — update order + credit earnings atomically
-    const [updatedOrder, updatedRider] = await prisma.$transaction([
-      prisma.order.update({
-        where: { id: orderId },
-        data: { status: 'DELIVERED' },
-        include: {
-          items: true,
-          customer: { select: { id: true, name: true, phone: true } },
-        },
-      }),
-      prisma.riderProfile.update({
-        where: { id: riderProfile.id },
-        data: {
-          totalEarnings:     { increment: deliveryEarning },
-          totalDeliveries:   { increment: 1 },
-        },
-      }),
-    ]);
-
-    res.status(200).json({
-      message: 'Delivery completed successfully',
-      earning: deliveryEarning,
-      order: updatedOrder,
-      riderStats: {
-        totalEarnings:   updatedRider.totalEarnings,
-        totalDeliveries: updatedRider.totalDeliveries,
+      data:  { status: 'DELIVERED' },
+      include: {
+        items:    { include: { product: { select: { name: true } } } },
+        customer: { select: { id: true, name: true, phone: true } },
       },
-    });
-  } catch (error) {
-    console.error('Complete Delivery Error:', error);
-    res.status(500).json({ message: 'Server error while completing delivery', error });
-  }
-};
-
-// @desc    Get rider earnings summary + delivery history
-// @route   GET /api/riders/earnings
-export const getRiderEarnings = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const riderProfile = await prisma.riderProfile.findUnique({
-      where: { userId: req.user!.id },
-    });
-
-    if (!riderProfile) {
-      res.status(404).json({ message: 'Rider profile not found' });
-      return;
-    }
-
-    // Full delivery history for this rider
-    const deliveries = await prisma.order.findMany({
-      where: {
-        riderId: riderProfile.id,
-        status: 'DELIVERED',
+    }),
+    prisma.riderProfile.update({
+      where: { id: riderProfile.id },
+      data:  {
+        totalDeliveries: { increment: 1 },
+        totalEarnings:   { increment: earning },
       },
-      select: {
-        id:          true,
-        totalAmount: true,
-        createdAt:   true,
-        updatedAt:   true,
-        customer: {
-          select: { name: true },
-        },
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
+    }),
+  ]);
 
-    // Earnings by day (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  res.json({ message: 'Delivery completed', order: updatedOrder, earning });
+});
 
-    const earningsByDay: Record<string, number> = {};
-    for (const d of deliveries) {
-      if (d.updatedAt >= thirtyDaysAgo) {
-        const day: string = d.updatedAt.toISOString().split('T')[0]!;
-        const earned = parseFloat((d.totalAmount * 0.10).toFixed(2));
-        earningsByDay[day] = parseFloat(((earningsByDay[day] || 0) + earned).toFixed(2));
-      }
-    }
+// ─── GET /api/riders/earnings ─────────────────────────────────────────────────
+export const getRiderEarnings = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const riderProfile = await prisma.riderProfile.findUnique({ where: { userId: req.user.id } });
+  if (!riderProfile) throw new AppError(404, 'Rider profile not found');
 
-    res.status(200).json({
-      message: 'Rider earnings fetched successfully',
-      summary: {
-        totalEarnings:   riderProfile.totalEarnings,
-        totalDeliveries: riderProfile.totalDeliveries,
-      },
-      earningsByDay,
-      deliveryHistory: deliveries.map(d => ({
-        orderId:      d.id,
-        customerName: d.customer.name,
-        orderAmount:  d.totalAmount,
-        earned:       parseFloat((d.totalAmount * 0.10).toFixed(2)),
-        deliveredAt:  d.updatedAt,
-      })),
-    });
-  } catch (error) {
-    console.error('Get Rider Earnings Error:', error);
-    res.status(500).json({ message: 'Server error while fetching earnings', error });
-  }
-};
+  const deliveries = await prisma.order.findMany({
+    where:   { riderId: riderProfile.id, status: 'DELIVERED' },
+    include: {
+      items:    { include: { product: { select: { name: true } } } },
+      customer: { select: { name: true } },
+      vendor:   { select: { shopName: true } },
+    },
+    orderBy: { updatedAt: 'desc' },
+  });
+
+  const RIDER_EARNING_PCT = 0.15;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const deliveriesToday  = deliveries.filter((d) => new Date(d.updatedAt) >= today);
+  const earningsToday    = deliveriesToday.reduce((s, d) => s + d.totalAmount * RIDER_EARNING_PCT, 0);
+
+  res.json({
+    totalDeliveries:  riderProfile.totalDeliveries,
+    totalEarnings:    riderProfile.totalEarnings,
+    averageRating:    riderProfile.averageRating,
+    deliveriesToday:  deliveriesToday.length,
+    earningsToday:    parseFloat(earningsToday.toFixed(2)),
+    recentDeliveries: deliveries.slice(0, 20).map((d) => ({
+      orderId:     d.id,
+      vendor:      d.vendor.shopName,
+      customer:    d.customer.name,
+      totalAmount: d.totalAmount,
+      earning:     parseFloat((d.totalAmount * RIDER_EARNING_PCT).toFixed(2)),
+      deliveredAt: d.updatedAt,
+    })),
+  });
+});

@@ -1,171 +1,111 @@
-import { PrismaClient } from "@prisma/client";
-import type { Response } from "express";
-import type { AuthRequest } from "../middleware/authMiddleware.js";
+import type { Response } from 'express';
+import type { AuthRequest } from '../middleware/authMiddleware.js';
+import { prisma } from '../lib/prisma.js';
+import { AppError, asyncHandler } from '../middleware/errorMiddleware.js';
 
-const prisma = new PrismaClient();
+// ─── PATCH /api/vendors/toggle-status ─────────────────────────────────────────
+export const toggleShopStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const vendor = await prisma.vendorProfile.findUnique({ where: { userId: req.user.id } });
+  if (!vendor) throw new AppError(404, 'Vendor profile not found');
 
-export const toggleShopStatus = async (req: AuthRequest, res: Response) => {
-  try {
-    // 1. Find vendor
-    const vendor = await prisma.vendorProfile.findUnique({
-      where: { userId: req.user.id },
-    });
+  const updated = await prisma.vendorProfile.update({
+    where: { id: vendor.id },
+    data: { isOpen: !vendor.isOpen },
+  });
 
-    if (!vendor) {
-      return res.status(404).json({ message: "Vendor profile not found" });
-    }
+  res.json({
+    message: `Shop is now ${updated.isOpen ? 'OPEN' : 'CLOSED'}`,
+    isOpen: updated.isOpen,
+  });
+});
 
-    // 2. Toggle status
-    const updatedVendor = await prisma.vendorProfile.update({
-      where: { id: vendor.id },
-      data: {
-        isOpen: !vendor.isOpen,
-      },
-    });
+// ─── PUT /api/vendors/settings ────────────────────────────────────────────────
+export const updateShopSettings = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { shopName, shopType, openingTime, closingTime, description, address, contactNo } = req.body;
 
-    res.status(200).json({
-      message: `Shop is now ${updatedVendor.isOpen ? "OPEN" : "CLOSED"}`,
-      isOpen: updatedVendor.isOpen,
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Error toggling shop status" });
-  }
-};
+  const vendor = await prisma.vendorProfile.findUnique({ where: { userId: req.user.id } });
+  if (!vendor) throw new AppError(404, 'Vendor profile not found');
 
-// @desc    Update shop settings
-// @route   PUT /api/vendors/settings
-export const updateShopSettings = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { shopName, shopType, description, openingTime, closingTime } = req.body;
+  const updated = await prisma.vendorProfile.update({
+    where: { id: vendor.id },
+    data: {
+      ...(shopName    && { shopName }),
+      ...(shopType    && { shopType }),
+      ...(openingTime && { openingTime }),
+      ...(closingTime && { closingTime }),
+      ...(description !== undefined && { description }),
+      ...(address     !== undefined && { address }),
+      ...(contactNo   !== undefined && { contactNo }),
+    },
+  });
 
-    const vendor = await prisma.vendorProfile.findUnique({
-      where: { userId: req.user!.id },
-    });
-    if (!vendor) {
-      res.status(404).json({ message: 'Vendor profile not found' });
-      return;
-    }
+  res.json({ message: 'Shop settings updated', vendor: updated });
+});
 
-    const updated = await prisma.vendorProfile.update({
-      where: { userId: req.user!.id },
-      data: {
-        ...(shopName    && { shopName }),
-        ...(shopType    && { shopType }),
-        ...(description !== undefined && { description }),
-        ...(openingTime && { openingTime }),
-        ...(closingTime && { closingTime }),
-      },
-    });
+// ─── GET /api/vendors/analytics ───────────────────────────────────────────────
+// Full KPI dashboard: earnings, orders, ratings, top products, recent orders
+export const getVendorAnalytics = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const vendor = await prisma.vendorProfile.findUnique({ where: { userId: req.user.id } });
+  if (!vendor) throw new AppError(404, 'Vendor profile not found');
 
-    res.status(200).json({ message: 'Shop settings updated successfully', vendorProfile: updated });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error while updating shop settings', error });
-  }
-};
-
-// @desc    Get vendor dashboard stats
-// @route   GET /api/vendors/dashboard
-export const getVendorDashboard = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const vendor = await prisma.vendorProfile.findUnique({
-      where: { userId: req.user!.id },
-    });
-    if (!vendor) {
-      res.status(404).json({ message: 'Vendor profile not found' });
-      return;
-    }
-
-    const orders = await prisma.order.findMany({
+  const [orders, products, reviews] = await Promise.all([
+    prisma.order.findMany({
       where: { vendorId: vendor.id },
-    });
+      include: { items: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.product.findMany({
+      where: { vendorId: vendor.id },
+      include: { orderItems: true },
+    }),
+    prisma.review.findMany({
+      where: { vendorId: vendor.id },
+      include: { user: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    }),
+  ]);
 
-    const deliveredOrders = orders.filter(o => o.status === 'DELIVERED');
-    const totalEarnings = deliveredOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-    const totalProducts = await prisma.product.count({ where: { vendorId: vendor.id } });
-    const availableProducts = await prisma.product.count({ where: { vendorId: vendor.id, isAvailable: true } });
+  const totalOrders    = orders.length;
+  const deliveredOrders = orders.filter((o) => o.status === 'DELIVERED');
+  const totalEarnings  = deliveredOrders.reduce((s, o) => s + o.totalAmount, 0);
+  const activeOrders   = orders.filter((o) => !['DELIVERED', 'CANCELLED'].includes(o.status));
 
-    res.status(200).json({
-      message: 'Dashboard stats fetched successfully',
-      stats: {
-        totalOrders:      orders.length,
-        deliveredOrders:  deliveredOrders.length,
-        pendingOrders:    orders.filter(o => ['PENDING','PREPARING','READY'].includes(o.status)).length,
-        cancelledOrders:  orders.filter(o => o.status === 'CANCELLED').length,
-        totalEarnings:    parseFloat(totalEarnings.toFixed(2)),
-        totalProducts,
-        availableProducts,
-        shopStatus:       vendor.isOpen ? 'open' : 'closed',
-      },
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error while fetching dashboard stats', error });
-  }
-};
+  // Top 5 products by units sold
+  const productStats = products.map((p) => ({
+    id: p.id,
+    name: p.name,
+    price: p.price,
+    stock: p.stock,
+    isAvailable: p.isAvailable,
+    unitsSold: p.orderItems.reduce((s, oi) => s + oi.quantity, 0),
+    revenue:   p.orderItems.reduce((s, oi) => s + oi.price * oi.quantity, 0),
+  }));
+  const topProducts = [...productStats].sort((a, b) => b.unitsSold - a.unitsSold).slice(0, 5);
 
-// @desc    Get vendor analytics
-// @route   GET /api/vendors/analytics
-export const getVendorAnalytics = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const vendor = await prisma.vendorProfile.findUnique({
-      where: { userId: req.user!.id },
-    });
-    if (!vendor) {
-      res.status(404).json({ message: 'Vendor profile not found' });
-      return;
-    }
+  // Orders by day for the last 7 days
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const recentOrders = orders.filter((o) => o.createdAt >= sevenDaysAgo);
+  const dailyTrend   = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(sevenDaysAgo);
+    d.setDate(d.getDate() + i);
+    const day = d.toISOString().split('T')[0];
+    return {
+      date:   day,
+      orders: recentOrders.filter((o) => o.createdAt.toISOString().startsWith(day || '')).length,
+    };
+  });
 
-    const deliveredOrders = await prisma.order.findMany({
-      where: { vendorId: vendor.id, status: 'DELIVERED' },
-      include: { items: { include: { product: true } } },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    // Earnings by day (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const earningsByDay = new Map<string, number>();
-    for (const order of deliveredOrders) {
-      if (!order.createdAt || order.createdAt < thirtyDaysAgo) continue;
-      const day = order.createdAt.toISOString().split('T')[0] ?? '';
-      const current = earningsByDay.get(day) || 0;
-      earningsByDay.set(day, parseFloat((current + order.totalAmount).toFixed(2)));
-   }
-
-    // Top 5 products
-    const productSales: Record<number, { name: string; quantitySold: number; revenue: number }> = {};
-    for (const order of deliveredOrders) {
-     for (const item of order.items) {
-       const existing = productSales[item.productId];
-       if (!existing) {
-         productSales[item.productId] = { name: item.product.name, quantitySold: item.quantity, revenue: item.price * item.quantity };
-        } else {
-         existing.quantitySold += item.quantity;
-         existing.revenue      += item.price * item.quantity;
-       }
-     }
-   }
-    const topProducts = Object.entries(productSales)
-      .map(([id, data]) => ({ productId: Number(id), ...data }))
-      .sort((a, b) => b.quantitySold - a.quantitySold)
-      .slice(0, 5);
-
-    // Status breakdown
-    const allOrders = await prisma.order.findMany({ where: { vendorId: vendor.id } });
-    const statusBreakdown = allOrders.reduce<Record<string, number>>((acc, o) => {
-      acc[o.status] = (acc[o.status] || 0) + 1;
-      return acc;
-    }, {});
-
-    res.status(200).json({
-      message: 'Vendor analytics fetched successfully',
-      analytics: {
-        earningsByDay: Object.fromEntries(earningsByDay),
-        topProducts,
-        statusBreakdown,
-        totalRevenue: parseFloat(deliveredOrders.reduce((s, o) => s + o.totalAmount, 0).toFixed(2)),
-      },
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error while fetching analytics', error });
-  }
-};
+  res.json({
+    totalOrders,
+    totalEarnings,
+    activeOrders: activeOrders.length,
+    activeProducts: products.filter((p) => p.isAvailable).length,
+    averageRating: vendor.averageRating,
+    totalReviews:  vendor.totalReviews,
+    topProducts,
+    dailyTrend,
+    recentReviews: reviews,
+    recentActiveOrders: activeOrders.slice(0, 10),
+  });
+});

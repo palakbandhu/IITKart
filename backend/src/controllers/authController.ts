@@ -1,144 +1,207 @@
 import type { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
-import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
+import type { AuthRequest } from '../middleware/authMiddleware.js';
+import { prisma } from '../lib/prisma.js';
 import { generateToken } from '../utils/helpers.js';
+import { AppError, asyncHandler } from '../middleware/errorMiddleware.js';
+import { logger } from '../utils/logger.js';
 
-const prisma = new PrismaClient();
+const OTP_EXPIRY_MINUTES = 10;
+const MAX_OTP_ATTEMPTS   = 3;
 
-// Status Codes present in the responses still need to be verified from the SRS and the norms typically used.
-// OTP autn. has been currently omitted for simplicity of code and the non-availability of SMS API till date. 
-// Exotel se SMS API request kiya hai, 4th March tk OTP autn. implement kar denge.
+// ─── Utility: generate a 6-digit numeric OTP ──────────────────────────────────
+function generateOTP(): string {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
 
-// @description   Register a new user with Role Assignment
-// @route   POST /api/auth/register
-export const registerUser = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { 
-      name, email, phone, password, role, 
-      // Vendor
-      shopName, shopType, openingTime, closingTime,
-      // Rider
-      vehicleType, vehicleNo 
-    } = req.body;
+// ─── Utility: send OTP via Exotel (SMS) ───────────────────────────────────────
+// Replace the body of this function once Exotel credentials are available.
+async function sendOTP(phone: string, otp: string): Promise<void> {
+  // TODO: Integrate Exotel SMS API here.
+  // For local dev, OTP is logged to the console.
+  logger.info(`[DEV] OTP for ${phone}: ${otp}`);
 
+  // Example Exotel integration (uncomment when ready):
+  // await axios.post(
+  //   `https://api.exotel.com/v1/Accounts/${process.env.EXOTEL_SID}/Sms/send`,
+  //   new URLSearchParams({
+  //     From:   process.env.EXOTEL_SENDER_ID!,
+  //     To:     phone,
+  //     Body:   `Your IITKart OTP is ${otp}. Valid for ${OTP_EXPIRY_MINUTES} minutes.`,
+  //   }),
+  //   { auth: { username: process.env.EXOTEL_API_KEY!, password: process.env.EXOTEL_API_TOKEN! } }
+  // );
+}
 
-    // Check for already existing user with same credentials
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [{ email }, { phone }]
-      }
-    });
+// ─── POST /api/auth/register ──────────────────────────────────────────────────
+export const registerUser = asyncHandler(async (req: Request, res: Response) => {
+  const {
+    name, email, phone, password, role,
+    shopName, shopType, openingTime, closingTime,
+    vehicleType, vehicleNo,
+  } = req.body;
 
-    if (existingUser) {
-      res.status(400).json({ message: 'User with this email or phone already exists' });
-      return;
-    }
+  const existingUser = await prisma.user.findFirst({
+    where: { OR: [{ email }, { phone }] },
+  });
+  if (existingUser) throw new AppError(400, 'User with this email or phone already exists');
 
-    // Password Hashing
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const userRole       = role || 'CUSTOMER';
 
+  const user = await prisma.user.create({
+    data: {
+      name, email, phone, password: hashedPassword, role: userRole,
+      ...(userRole === 'VENDOR' && {
+        vendorProfile: { create: { shopName, shopType, openingTime, closingTime } },
+      }),
+      ...(userRole === 'RIDER' && {
+        riderProfile: { create: { vehicleType, vehicleNo } },
+      }),
+    },
+    include: { vendorProfile: true, riderProfile: true },
+  });
 
-    //Role Determination and Profile Creation
-    const userRole = role || 'CUSTOMER';
-    let vendorProfileData = undefined;
-    let riderProfileData = undefined;
+  const token = generateToken(user.id, user.role);
 
-    if (userRole === 'VENDOR') {
-      if (!shopName || !shopType || !openingTime || !closingTime) {
-        res.status(400).json({ message: 'Missing required vendor details' });
-        return;
-      }
-      vendorProfileData = {
-        create: { shopName, shopType, openingTime, closingTime }
-      };
-    } 
-    else if (userRole === 'RIDER') {
-      if (!vehicleType) {
-        res.status(400).json({ message: 'Missing required rider details' });
-        return;
-      }
-      riderProfileData = {
-        create: { vehicleType, vehicleNo }
-      };
-    }
+  res.status(201).json({
+    message: 'Registration successful',
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, vendorProfile: user.vendorProfile, riderProfile: user.riderProfile },
+    token,
+  });
+});
 
-    // User creation in-case user does not already exist
-    const user = await prisma.user.create({
-        data: {
-          name,
-          email,
-          phone,
-          password: hashedPassword,
-          role: userRole,
-          ...(userRole === 'VENDOR' && {
-            vendorProfile: {
-              create: { shopName, shopType, openingTime, closingTime },
-            },
-          }),
-          ...(userRole === 'RIDER' && {
-            riderProfile: {
-              create: { vehicleType, vehicleNo },
-            },
-          }),
-        },
-        include: {
-          vendorProfile: true,
-          riderProfile: true,
-        },
-      });
+// ─── POST /api/auth/login ─────────────────────────────────────────────────────
+export const loginUser = asyncHandler(async (req: Request, res: Response) => {
+  const { email, password } = req.body;
 
-    //Authn. Token generation
-    const token = generateToken(user.id, user.role);
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) throw new AppError(401, 'Invalid email or password');
 
-    // Final Response for successful Registration
-    res.status(201).json({
-      message: 'Registration successful',
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        vendorProfile: user.vendorProfile,
-        riderProfile: user.riderProfile
-      },
-      token,
-    });
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) throw new AppError(401, 'Invalid email or password');
 
-  } catch (error) {
-    console.error('Registration Error:', error);
-    res.status(500).json({ message: 'Server error during registration', error });
+  const token = generateToken(user.id, user.role);
+
+  res.json({
+    message: 'Login successful',
+    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    token,
+  });
+});
+
+// ─── POST /api/auth/forgot-password ───────────────────────────────────────────
+// Step 1: Customer provides phone/email → OTP is generated and sent via SMS
+export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { identifier } = req.body; // email OR phone
+  if (!identifier) throw new AppError(400, 'Email or phone number is required');
+
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ email: identifier }, { phone: identifier }] },
+  });
+
+  // Always return 200 to prevent user enumeration
+  if (!user) {
+    res.json({ message: 'If an account with that identifier exists, an OTP has been sent.' });
+    return;
   }
-};
 
-// @description   Authenticate user & get token
-// @route   POST /api/auth/login
-export const loginUser = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { email, password } = req.body;
+  const otp       = generateOTP();
+  const otpHash   = await bcrypt.hash(otp, 10);
+  const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-    const user = await prisma.user.findUnique({ where: { email } });
+  await prisma.user.update({
+    where: { id: user.id },
+    data:  { otpHash, otpExpiry, otpAttempts: 0 },
+  });
 
-    if (!user || !user.password) {
-      res.status(401).json({ message: 'Invalid email or password' });
-      return;
-    }
+  await sendOTP(user.phone, otp);
 
-    const isMatch = await bcrypt.compare(password, user.password);
+  res.json({ message: 'OTP sent successfully. Valid for 10 minutes.', phone: user.phone.slice(-4) });
+});
 
-    if (!isMatch) {
-      res.status(401).json({ message: 'Invalid email or password' });
-      return;
-    }
+// ─── POST /api/auth/verify-otp ────────────────────────────────────────────────
+// Step 2: Verify the OTP. Returns a short-lived reset token on success.
+export const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
+  const { identifier, otp } = req.body;
+  if (!identifier || !otp) throw new AppError(400, 'Identifier and OTP are required');
 
-    const token = generateToken(user.id, user.role);
-
-    res.status(200).json({
-      message: 'Login successful',
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
-      token,
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error during login', error });
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ email: identifier }, { phone: identifier }] },
+  });
+  if (!user || !user.otpHash || !user.otpExpiry) {
+    throw new AppError(400, 'No pending OTP request found. Please request a new OTP.');
   }
-};
+
+  if (user.otpAttempts >= MAX_OTP_ATTEMPTS) {
+    throw new AppError(429, 'Too many failed attempts. Please request a new OTP.');
+  }
+
+  if (new Date() > user.otpExpiry) {
+    throw new AppError(400, 'OTP has expired. Please request a new one.');
+  }
+
+  const isValid = await bcrypt.compare(String(otp), user.otpHash);
+  if (!isValid) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data:  { otpAttempts: { increment: 1 } },
+    });
+    const remaining = MAX_OTP_ATTEMPTS - (user.otpAttempts + 1);
+    throw new AppError(400, `Invalid OTP. ${remaining} attempt(s) remaining.`);
+  }
+
+  // OTP verified — generate a one-time reset token (valid for 15 min)
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const resetTokenHash   = await bcrypt.hash(resetToken, 10);
+  const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data:  {
+      otpHash:    resetTokenHash,
+      otpExpiry:  resetTokenExpiry,
+      otpAttempts: 0,
+    },
+  });
+
+  res.json({ message: 'OTP verified successfully', resetToken });
+});
+
+// ─── POST /api/auth/reset-password ────────────────────────────────────────────
+// Step 3: Submit new password using the reset token from step 2
+export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { identifier, resetToken, newPassword } = req.body;
+  if (!identifier || !resetToken || !newPassword) {
+    throw new AppError(400, 'identifier, resetToken, and newPassword are all required');
+  }
+  if (newPassword.length < 6) throw new AppError(400, 'Password must be at least 6 characters');
+
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ email: identifier }, { phone: identifier }] },
+  });
+  if (!user || !user.otpHash || !user.otpExpiry) {
+    throw new AppError(400, 'Invalid or expired reset session. Please start over.');
+  }
+  if (new Date() > user.otpExpiry) {
+    throw new AppError(400, 'Reset session expired. Please request a new OTP.');
+  }
+
+  const isValid = await bcrypt.compare(resetToken, user.otpHash);
+  if (!isValid) throw new AppError(400, 'Invalid reset token.');
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data:  {
+      password:   hashedPassword,
+      otpHash:    null,
+      otpExpiry:  null,
+      otpAttempts: 0,
+    },
+  });
+
+  res.json({ message: 'Password reset successfully. You can now log in.' });
+});

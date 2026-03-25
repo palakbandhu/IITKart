@@ -1,25 +1,19 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { PrismaClient, Role } from '@prisma/client';  // Added Role import
+import { Role } from '@prisma/client'; 
+import { prisma } from '../lib/prisma.js'; 
 
-const prisma = new PrismaClient();
-
-// Augment the Express Request interface globally instead of extending it
-declare global {
-  namespace Express {
-    interface Request {
-      user: {
-        id: number;
-        role: Role;
-      };
-    }
-  }
-}
-
-// Custom AuthRequest type alias for Request (leveraging global augmentation)
+/**
+ * Custom AuthRequest type alias. 
+ * TypeScript will automatically find the 'user' property definition 
+ * from your src/types/express.d.ts file.
+ */
 export type AuthRequest = Request;
 
-// @desc    Protect routes - verifies JWT token
+/**
+ * @desc    Protect routes - verifies JWT token from Authorization header
+ * @route   Middleware
+ */
 export const protect = async (
   req: Request,
   res: Response,
@@ -28,6 +22,7 @@ export const protect = async (
   try {
     const authHeader = req.headers.authorization;
 
+    // 1. Check if token exists and follows Bearer format
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       res.status(401).json({ message: 'Not authorized, no token provided' });
       return;
@@ -43,19 +38,21 @@ export const protect = async (
     const secret = process.env.JWT_SECRET;
 
     if (!secret) {
-      res.status(500).json({ message: 'JWT_SECRET not configured' });
+      res.status(500).json({ message: 'JWT_SECRET not configured in .env' });
       return;
     }
 
-    const decoded = jwt.verify(token, secret) as unknown as { id: number; role: Role };  // Changed role from string to Role
+    // 2. Verify token
+    const decoded = jwt.verify(token, secret) as { id: number; role: Role };
 
-    // Verify user still exists in DB
+    // 3. Verify user still exists in database
     const user = await prisma.user.findUnique({ where: { id: decoded.id } });
     if (!user) {
       res.status(401).json({ message: 'User no longer exists' });
       return;
     }
 
+    // 4. Attach user data to request object for use in controllers
     req.user = { id: decoded.id, role: decoded.role };
     next();
   } catch (error) {
@@ -63,8 +60,11 @@ export const protect = async (
   }
 };
 
-// @desc    Restrict access to specific roles
-export const authorize = (...roles: Role[]) => {  // Changed roles parameter from string[] to Role[]
+/**
+ * @desc    Restrict access to specific roles (e.g., VENDOR, ADMIN)
+ * @param   roles - Array of allowed roles from Prisma Role enum
+ */
+export const authorize = (...roles: Role[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!roles.includes(req.user.role)) {
       res.status(403).json({
