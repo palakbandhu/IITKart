@@ -313,7 +313,7 @@ export function AdminInterface() {
                         ))}
                       </div>
                       <button
-                        onClick={() => { updateVendor(vendor.id, { status: vendor.status === 'active' ? 'inactive' : 'active' }); toast.success(`Vendor ${vendor.status === 'active' ? 'deactivated' : 'activated'}!`); }}
+                        onClick={() => { updateVendor(vendor.id, { status: vendor.status === 'active' ? 'suspended' : 'active' }); toast.success(`Vendor ${vendor.status === 'active' ? 'deactivated' : 'activated'}!`); }}
                         className={`w-full h-9 rounded-xl text-xs font-bold transition-all active:scale-95 border ${
                           vendor.status === 'active'
                             ? 'bg-red-50 dark:bg-red-900/10 text-red-500 hover:bg-red-100 border-red-200 dark:border-red-900/30'
