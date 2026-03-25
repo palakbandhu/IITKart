@@ -75,6 +75,7 @@ export interface Vendor {
   totalEarnings: number;
   status: 'active' | 'suspended';
   availability: string;
+  location?: string;
 }
 
 export interface CourierJob {
