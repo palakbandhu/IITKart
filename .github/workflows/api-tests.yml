@@ -50,19 +50,23 @@ jobs:
           DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/iitkart_test
         run: npx prisma migrate deploy
 
+      - name: Build server
+        working-directory: backend
+        run: npm run build
+
       - name: Start server
         working-directory: backend
         env:
           DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/iitkart_test
           JWT_SECRET: test_jwt_secret_for_ci
           PORT: 5000
-        run: npm run dev &
+        run: node dist/server.js &
 
       - name: Wait for server
         run: |
-          sleep 10
+          sleep 15
           npx wait-on http://localhost:5000/health --timeout 60000
-          
+
       - name: Run Newman tests
         working-directory: backend
         run: npm run test:api
