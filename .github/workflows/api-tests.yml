@@ -25,6 +25,12 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+    # Define shared environment variables for the whole job
+    env:
+      DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/iitkart_test
+      JWT_SECRET: test_jwt_secret_for_ci
+      PORT: 5000
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,39 +39,32 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
 
       - name: Install dependencies
         working-directory: backend
         run: npm install
 
-      - name: Generate Prisma client
+      - name: Database Setup (Prisma)
         working-directory: backend
-        env:
-          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/iitkart_test
-        run: npx prisma generate
-
-      - name: Run migrations
-        working-directory: backend
-        env:
-          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/iitkart_test
-        run: npx prisma migrate deploy
+        run: |
+          npx prisma generate
+          npx prisma migrate deploy
 
       - name: Build server
         working-directory: backend
         run: npm run build
 
-      - name: Start server
+      - name: Start Server and Wait
         working-directory: backend
-        env:
-          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/iitkart_test
-          JWT_SECRET: test_jwt_secret_for_ci
-          PORT: 5000
-        run: node dist/server.js &
-
-      - name: Wait for server
         run: |
-          sleep 15
-          npx wait-on http://localhost:5000/health --timeout 60000
+          # Start the server in the background
+          node dist/server.js &
+          
+          # Wait for the health check to return 200 OK
+          # We use 127.0.0.1 to avoid potential IPv6 resolution issues in CI
+          npx wait-on http://127.0.0.1:5000/health --timeout 60000
 
       - name: Run Newman tests
         working-directory: backend
