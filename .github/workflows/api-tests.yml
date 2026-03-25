@@ -67,5 +67,8 @@ jobs:
           npx wait-on http://127.0.0.1:5000/health --timeout 60000
 
       - name: Run Newman tests
-        working-directory: backend
-        run: npm run test:api
+        # We run this from the root so the paths are simpler
+        run: |
+          npx newman run postman/IITKart_Collection.json \
+          -e postman/environments/IITKart_environment.json \
+          --env-var "baseUrl=http://127.0.0.1:5000"
