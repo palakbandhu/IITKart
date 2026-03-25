@@ -1,0 +1,52 @@
+{
+	"id": "20309867-1341-48e7-92ea-321b4fc14e28",
+	"name": "IITKart local",
+	"values": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "customer_token",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "vendor_token",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "rider_token",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "order_id",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "product_i",
+			"value": "",
+			"type": "any",
+			"enabled": true
+		},
+		{
+			"key": "product_id",
+			"value": "",
+			"type": "any",
+			"enabled": true
+		}
+	],
+	"color": null,
+	"_postman_variable_scope": "environment",
+	"_postman_exported_at": "2026-03-25T09:35:41.819Z",
+	"_postman_exported_using": "Postman/12.3.1"
+}

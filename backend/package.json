@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch --env-file=.env src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "test:api": "newman run ../postman/IITKart_Collection.json -e ../postman/environments/IITKart_Environment.json"
   },
   "keywords": [],
   "author": "",
@@ -26,6 +27,7 @@
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.3.0",
+    "newman": "^6.2.2",
     "nodemon": "^3.1.14",
     "prisma": "^5.10.2",
     "ts-node": "^10.9.2",

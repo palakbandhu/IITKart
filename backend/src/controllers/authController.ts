@@ -119,7 +119,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
 
     const user = await prisma.user.findUnique({ where: { email } });
 
-    if (!user) {
+    if (!user || !user.password) {
       res.status(401).json({ message: 'Invalid email or password' });
       return;
     }
