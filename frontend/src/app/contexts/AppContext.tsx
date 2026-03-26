@@ -379,15 +379,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(intervalId);
   }, [currentUser]);
 
-  const addProduct = async (product: Product) => {
+  const addProduct = async (product: any) => {
     try {
-      const response = await api.post('/vendors/me/products', {
-        name: product.name,
-        category: product.category,
-        price: product.price,
-        description: product.description,
-        image: product.image,
-        inStock: product.inStock
+      const formData = new FormData();
+      formData.append('name', product.name);
+      formData.append('category', product.category);
+      formData.append('price', String(product.price));
+      formData.append('description', product.description);
+      formData.append('inStock', String(product.inStock));
+      if (product.image) {
+        formData.append('image', product.image);
+      }
+
+      const response = await api.post('/vendors/me/products', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
       const newProduct = { ...response.data.data, vendorName: currentUser?.name || 'My Shop' };
       setProducts(prev => [...prev, newProduct]);
@@ -407,10 +412,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateProduct = async (productId: string, updates: Partial<Product>) => {
+  const updateProduct = async (productId: string, updates: any) => {
     try {
-      await api.patch(`/vendors/me/products/${productId}`, updates);
-      setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...updates } : p));
+      let payload: any = updates;
+      const headers: any = {};
+      
+      if (updates.image instanceof File) {
+        payload = new FormData();
+        Object.entries(updates).forEach(([key, value]) => {
+          if (value !== undefined) {
+            payload.append(key, value instanceof File ? value : String(value));
+          }
+        });
+        headers['Content-Type'] = 'multipart/form-data';
+      }
+
+      const response = await api.patch(`/vendors/me/products/${productId}`, payload, { headers });
+      const updatedProduct = response.data.data;
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...updatedProduct } : p));
     } catch (error) {
       console.error("Failed to update product:", error);
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...updates } : p));

@@ -41,7 +41,6 @@ function ProductFormFields({ productForm, setProductForm, onSubmit, label }: { p
       {[
         { f: 'name',  l: 'Product Name', t: 'text',   ph: 'e.g. Masala Chai' },
         { f: 'price', l: 'Price (₹)',    t: 'number', ph: '0' },
-        { f: 'image', l: 'Image URL',    t: 'text',   ph: 'https://…' },
         { f: 'stock', l: 'Stock Qty',    t: 'number', ph: '10' },
       ].map(({ f, l, t, ph }) => (
         <div key={f} className="space-y-1">
@@ -51,6 +50,19 @@ function ProductFormFields({ productForm, setProductForm, onSubmit, label }: { p
             className="h-10 bg-[#F0F4FF] dark:bg-[#0A1628] border-blue-100 dark:border-blue-900/30 rounded-xl" />
         </div>
       ))}
+      <div className="space-y-1">
+        <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Product Image</Label>
+        <Input type="file" accept="image/*"
+          onChange={e => {
+            if (e.target.files && e.target.files[0]) {
+              setProductForm({ ...productForm, image: e.target.files[0] });
+            }
+          }}
+          className="h-10 bg-[#F0F4FF] dark:bg-[#0A1628] border-blue-100 dark:border-blue-900/30 rounded-xl cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 p-2" />
+        {typeof productForm.image === 'string' && productForm.image && (
+          <p className="text-[10px] text-slate-400 mt-1 truncate">Current: {productForm.image.split('/').pop()}</p>
+        )}
+      </div>
       <div className="space-y-1">
         <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Category</Label>
         <Select value={productForm.category} onValueChange={v => setProductForm({ ...productForm, category: v })}>
@@ -75,7 +87,7 @@ function ProductFormFields({ productForm, setProductForm, onSubmit, label }: { p
 
 export function VendorInterface() {
   const navigate = useNavigate();
-  const { products, addProduct, removeProduct, updateProduct, orders, refreshOrders, currentUser, setCurrentUser, vendors, courierProfiles, users } = useApp();
+  const { products, addProduct, removeProduct, updateProduct, orders, refreshOrders, currentUser, setCurrentUser, vendors, courierProfiles, users, updateOrderStatus } = useApp();
 
   React.useEffect(() => { if (!currentUser || (currentUser.role !== 'VENDOR' && currentUser.role !== 'vendor')) navigate('/auth'); }, [currentUser, navigate]);
   if (!currentUser || (currentUser.role !== 'VENDOR' && currentUser.role !== 'vendor')) return null;
@@ -186,7 +198,14 @@ export function VendorInterface() {
                           </div>
                         )}
                         {order.status === 'pending' && (
-                          <button onClick={() => toast.success('Order accepted!')}
+                          <button onClick={async () => {
+                              try {
+                                await updateOrderStatus(order.id, 'accepted');
+                                toast.success('Order accepted!');
+                              } catch (err) {
+                                toast.error('Failed to accept order');
+                              }
+                            }}
                             className="w-full h-9 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white text-xs font-bold rounded-xl transition-all active:scale-95">Accept Order</button>
                         )}
                       </div>

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as vendorController from '../controllers/vendorController';
 import { verifyToken, requireRole } from '../middlewares/authMiddleware';
+import { upload } from '../middlewares/uploadMiddleware';
 
 const router = Router();
 
@@ -16,8 +17,8 @@ router.get('/me/profile', vendorController.getVendorProfile);
 router.patch('/me/profile', vendorController.updateVendorProfile);
 
 router.get('/me/products', vendorController.getVendorProducts);
-router.post('/me/products', vendorController.addProduct);
-router.patch('/me/products/:id', vendorController.updateProduct);
+router.post('/me/products', upload.single('image'), vendorController.addProduct);
+router.patch('/me/products/:id', upload.single('image'), vendorController.updateProduct);
 router.delete('/me/products/:id', vendorController.deleteProduct);
 
 router.get('/me/orders', vendorController.getVendorOrders);

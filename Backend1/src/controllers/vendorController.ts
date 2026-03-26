@@ -61,32 +61,50 @@ export const getVendorProducts = async (req: AuthRequest, res: Response, next: N
   } catch (error) { next(error); }
 };
 
-export const addProduct = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const addProduct = async (req: any, res: Response, next: NextFunction) => {
   try {
-    const { name, category, price, description, image, inStock } = req.body;
+    const { name, category, description } = req.body;
+    let price = req.body.price ? Number(req.body.price) : 0;
+    let inStock = req.body.inStock === 'true' || req.body.inStock === true;
+    let image = req.body.image;
+    
+    if (req.file) {
+      image = `/uploads/${req.file.filename}`;
+    }
+
     const vendor = await prisma.vendor.findUnique({ where: { userId: req.user.id } });
     
-    if (!['Food', 'Beverage', 'Printing', 'Laundry', 'Stationery'].includes(category)) {
+    // Loosen category validation to allow frontend categories
+    const validCategories = ['Food', 'Beverage', 'Beverages', 'Printing', 'Laundry', 'Stationery', 'Snacks', 'Services', 'Other'];
+    if (!validCategories.includes(category)) {
       return next(new AppError('Invalid category', 400));
     }
 
     const product = await prisma.product.create({
-      data: { name, category, price, description, image: image || 'placeholder.png', inStock, vendorId: vendor!.id }
+      data: { name, category, price, description, image: image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400', inStock, vendorId: vendor!.id }
     });
     res.status(201).json({ success: true, data: product });
   } catch (error) { next(error); }
 };
 
-export const updateProduct = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateProduct = async (req: any, res: Response, next: NextFunction) => {
   try {
     const vendor = await prisma.vendor.findUnique({ where: { userId: req.user.id } });
     const product = await prisma.product.findFirst({ where: { id: req.params.id, vendorId: vendor!.id } });
     
     if (!product) return next(new AppError('Product not found or unauthorized', 404));
 
+    const updateData = { ...req.body };
+    if (req.body.price !== undefined) updateData.price = Number(req.body.price);
+    if (req.body.inStock !== undefined) updateData.inStock = req.body.inStock === 'true' || req.body.inStock === true;
+    
+    if (req.file) {
+      updateData.image = `/uploads/${req.file.filename}`;
+    }
+
     const updated = await prisma.product.update({
       where: { id: product.id },
-      data: req.body
+      data: updateData
     });
     res.status(200).json({ success: true, data: updated });
   } catch (error) { next(error); }
