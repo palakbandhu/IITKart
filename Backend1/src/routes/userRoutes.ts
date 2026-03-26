@@ -6,10 +6,13 @@ import { upload } from '../middlewares/uploadMiddleware';
 const router = Router();
 
 router.use(verifyToken);
-router.use(requireRole('user'));
 
+// Accessible by any authenticated role
 router.get('/profile', userController.getProfile);
 router.patch('/profile', upload.single('photo'), userController.updateProfile);
+
+// Strictly accessible by customers
+router.use(requireRole('user'));
 
 router.get('/favorites', userController.getFavorites);
 router.post('/favorites/:productId', userController.toggleFavorite);

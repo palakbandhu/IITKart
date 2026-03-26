@@ -89,7 +89,7 @@ function ProductFormFields({ productForm, setProductForm, onSubmit, label }: { p
 
 export function VendorInterface() {
   const navigate = useNavigate();
-  const { products, addProduct, removeProduct, updateProduct, orders, refreshOrders, currentUser, authLoading, logout, vendors, courierProfiles, users, updateOrderStatus } = useApp();
+  const { products, addProduct, removeProduct, updateProduct, orders, refreshOrders, currentUser, authLoading, logout, setCurrentUser, vendors, courierProfiles, users, updateOrderStatus, updateVendor, updateUser } = useApp();
 
   React.useEffect(() => {
     if (authLoading) return;
@@ -123,6 +123,28 @@ export function VendorInterface() {
   const [editingProduct, setEditingProduct]         = useState<Product | null>(null);
   const [productForm, setProductForm]               = useState({ name: '', category: 'Food', price: 0, description: '', image: '', stock: 10 });
   const [settingsData, setSettingsData]             = useState({ name: vendor?.name || '', email: currentUser?.email || '', phone: currentUser?.phone || '', address: vendor?.location || '' });
+  const [isSavingSettings, setIsSavingSettings]     = useState(false);
+
+  const handleSaveSettings = async () => {
+    if (!vendor || !currentUser) return;
+    setIsSavingSettings(true);
+    try {
+      await updateVendor(vendor.id, {
+        name: settingsData.name,
+        location: settingsData.address
+      });
+      await updateUser(currentUser.id, {
+        name: settingsData.name,
+        phone: settingsData.phone,
+        address: settingsData.address
+      });
+      toast.success('Settings saved successfully!');
+    } catch (err) {
+      toast.error('Failed to save settings');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   const handleAddProduct = () => {
     if (!productForm.name.trim() || !productForm.price) { toast.error('Name and price are required'); return; }
@@ -367,12 +389,15 @@ export function VendorInterface() {
                         <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5"><Icon className="w-3.5 h-3.5" />{f.label}</Label>
                         <Input type={f.type} placeholder={f.ph} value={(settingsData as any)[f.field]}
                           onChange={e => setSettingsData({ ...settingsData, [f.field]: e.target.value })}
-                          className="h-11 bg-[#F0F4FF] dark:bg-[#0A1628] border-blue-100 dark:border-blue-900/30 rounded-xl" />
+                          disabled={f.field === 'email'}
+                          className="h-11 bg-[#F0F4FF] dark:bg-[#0A1628] border-blue-100 dark:border-blue-900/30 rounded-xl disabled:opacity-60 disabled:cursor-not-allowed" />
                       </div>
                     );
                   })}
                   <div className="flex gap-3 pt-2">
-                    <button onClick={() => toast.success('Settings saved!')} className="flex-1 h-11 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white font-bold rounded-xl transition-all active:scale-95 text-sm">Save Changes</button>
+                    <button onClick={handleSaveSettings} disabled={isSavingSettings} className="flex-1 h-11 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white font-bold rounded-xl transition-all active:scale-95 text-sm disabled:opacity-70 disabled:cursor-not-allowed">
+                      {isSavingSettings ? 'Saving...' : 'Save Changes'}
+                    </button>
                     <button onClick={() => { logout(); navigate('/auth'); }} className="flex-1 h-11 border-2 border-red-200 dark:border-red-900/30 text-red-500 font-bold rounded-xl hover:bg-red-50 transition-colors text-sm">Logout</button>
                   </div>
                 </div>

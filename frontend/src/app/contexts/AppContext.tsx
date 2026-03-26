@@ -563,7 +563,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setVendors(prev => prev.map(v => v.id === vendorId ? { ...v, ...updates } : v));
     } catch (error) {
       console.error("Failed to update vendor:", error);
-      setVendors(prev => prev.map(v => v.id === vendorId ? { ...v, ...updates } : v));
+      throw error;
     }
   };
 
@@ -611,7 +611,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       console.error(err);
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
+      throw err;
     }
   };
 

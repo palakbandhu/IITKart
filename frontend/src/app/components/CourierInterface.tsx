@@ -27,7 +27,7 @@ function MetricCard({ label, value, icon: Icon, colorClass }: { label: string; v
 
 export function CourierInterface() {
   const navigate = useNavigate();
-  const { currentUser, authLoading, logout } = useApp();
+  const { currentUser, authLoading, logout, setCurrentUser, updateUser } = useApp();
 
   useEffect(() => {
     if (authLoading) return;
@@ -100,6 +100,29 @@ export function CourierInterface() {
   const pendingCount = pendingOrders.length;
   const avgRating = feedbackData.avgRating || "5.0";
   const courierFeedback: any[] = feedbackData.feedbacks || [];
+
+  const [settingsData, setSettingsData] = useState({ 
+    name: currentUser?.name || '', 
+    email: currentUser?.email || '', 
+    phone: currentUser?.phone || '' 
+  });
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  const handleSaveSettings = async () => {
+    if (!currentUser) return;
+    setIsSavingSettings(true);
+    try {
+      await updateUser(currentUser.id, {
+        name: settingsData.name,
+        phone: settingsData.phone,
+      });
+      toast.success('Settings saved successfully!');
+    } catch (err) {
+      toast.error('Failed to save settings');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   const [issueDialog, setIssueDialog]       = useState({ open: false, orderId: '' });
   const [issueType, setIssueType]           = useState('');
@@ -358,13 +381,17 @@ export function CourierInterface() {
                     return (
                       <div key={f.field} className="space-y-1">
                         <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5"><Icon className="w-3.5 h-3.5" />{f.label}</Label>
-                        <input type={f.type} defaultValue={(currentUser as any)[f.field]}
-                          className="w-full h-11 bg-[#F0F4FF] dark:bg-[#0A1628] border border-blue-100 dark:border-blue-900/30 rounded-xl px-3.5 text-sm focus:outline-none focus:border-[#1E3A8A]" />
+                        <input type={f.type} value={(settingsData as any)[f.field]}
+                          onChange={(e) => setSettingsData({ ...settingsData, [f.field]: e.target.value })}
+                          disabled={f.field === 'email'}
+                          className="w-full h-11 bg-[#F0F4FF] dark:bg-[#0A1628] border border-blue-100 dark:border-blue-900/30 rounded-xl px-3.5 text-sm focus:outline-none focus:border-[#1E3A8A] disabled:opacity-60 disabled:cursor-not-allowed" />
                       </div>
                     );
                   })}
                   <div className="flex gap-3 pt-2">
-                    <button onClick={() => toast.success('Settings saved!')} className="flex-1 h-11 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white font-bold rounded-xl text-sm transition-all active:scale-95">Save</button>
+                    <button onClick={handleSaveSettings} disabled={isSavingSettings} className="flex-1 h-11 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white font-bold rounded-xl text-sm transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
+                      {isSavingSettings ? 'Saving...' : 'Save'}
+                    </button>
                     <button onClick={() => { logout(); navigate('/auth'); }} className="flex-1 h-11 border-2 border-red-200 dark:border-red-900/30 text-red-500 font-bold rounded-xl text-sm hover:bg-red-50 transition-colors">Logout</button>
                   </div>
                 </div>

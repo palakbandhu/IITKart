@@ -34,3 +34,6 @@
 {"level":"info","message":"🔑 Super Admin account guaranteed (admin@iitk.ac.in / admin@123)","timestamp":"2026-03-26 22:28:52"}
 {"level":"info","message":"🚀 Server running on port 5001 in development mode","timestamp":"2026-03-26 22:28:52"}
 {"level":"info","message":"Database disconnected on app termination","timestamp":"2026-03-26 22:32:00"}
+{"level":"info","message":"✅ Database connected successfully","timestamp":"2026-03-26 23:06:01"}
+{"level":"info","message":"🔑 Super Admin account guaranteed (admin@iitk.ac.in / admin@123)","timestamp":"2026-03-26 23:06:01"}
+{"level":"info","message":"🚀 Server running on port 5001 in development mode","timestamp":"2026-03-26 23:06:01"}
