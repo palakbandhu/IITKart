@@ -154,7 +154,7 @@ export interface TransactionHistory {
 interface AppContextType {
   products: Product[];
   refreshProducts: () => Promise<void>;
-  addProduct: (product: Product) => Promise<void>;
+  addProduct: (product: Product) => void;
   removeProduct: (productId: string) => void;
   updateProduct: (productId: string, updates: Partial<Product>) => void;
   
@@ -164,13 +164,7 @@ interface AppContextType {
   logout: () => void;
   updateUserCoins: (userId: string, coins: number) => void;
   login: (email: string, password: string) => Promise<User | null>;
-  register: (name: string, email: string, password: string, role: User['role'], phone?: string, address?: string) => Promise<any>;
-  verifyRegistrationOtp: (userId: string, otp: string) => Promise<User | null>;
-  resendRegistrationOtp: (userId: string) => Promise<boolean>;
-  
-  requestPasswordReset: (email: string) => Promise<string | null>;
-  verifyPasswordResetOtp: (userId: string, otp: string) => Promise<string | null>;
-  resetPassword: (userId: string, resetToken: string, newPassword: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string, role: User['role'], phone?: string, address?: string) => Promise<User | null>;
   
   orders: Order[];
   refreshOrders: () => Promise<void>;
@@ -465,12 +459,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       formData.append('price', String(product.price));
       formData.append('description', product.description);
       formData.append('inStock', String(product.inStock));
-      if (product.image && typeof product.image !== 'object') {
-        formData.append('image', product.image);
-      } else if (product.image instanceof File) {
+      if (product.image) {
         formData.append('image', product.image);
       }
-      
+
+      // Don't set Content-Type manually; axios/browser will add the boundary.
       const response = await api.post('/vendors/me/products', formData);
       const newProduct = { ...response.data.data, vendorName: currentUser?.name || 'My Shop' };
       setProducts(prev => [...prev, newProduct]);
@@ -481,7 +474,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         status: err?.response?.status,
         data: err?.response?.data
       });
-      throw error;
     }
   };
 
@@ -520,7 +512,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         status: err?.response?.status,
         data: err?.response?.data
       });
-      throw error;
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...updates } : p));
     }
   };
 
@@ -726,25 +718,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const register = async (name: string, email: string, password: string, role: User['role'], phone?: string, address?: string) => {
     try {
       const response = await api.post('/auth/register', { name, email, password, role, phone, address });
-      if (response.data?.data?.userId) {
-        return { status: 'otp_sent', userId: response.data.data.userId };
-      }
-      return null;
-    } catch (error) {
-      console.error("Registration failed:", error);
-      return null;
-    }
-  };
-
-  const verifyRegistrationOtp = async (userId: string, otp: string) => {
-    try {
-      const response = await api.post('/auth/verify-email', { userId, otp });
       const { user, accessToken } = response.data.data;
       localStorage.setItem('token', accessToken);
       setCurrentUser(user);
       return user;
     } catch (error) {
-      console.error("OTP Verification failed:", error);
+      console.error("Registration failed:", error);
       return null;
     }
   };
@@ -752,46 +731,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     try { localStorage.removeItem('token'); } catch {}
     setCurrentUser(null);
-  };
-
-  const resendRegistrationOtp = async (userId: string) => {
-    try {
-      await api.post('/auth/resend-otp', { userId });
-      return true;
-    } catch (error) {
-      console.error("Resend OTP failed:", error);
-      return false;
-    }
-  };
-
-  const requestPasswordReset = async (email: string) => {
-    try {
-      const res = await api.post('/auth/forgot-password', { identifier: email });
-      return res.data?.data?.userId || null;
-    } catch (error) {
-      console.error("Forgot password failed:", error);
-      return null;
-    }
-  };
-
-  const verifyPasswordResetOtp = async (userId: string, otp: string) => {
-    try {
-      const res = await api.post('/auth/verify-otp', { userId, otp });
-      return res.data?.data?.resetToken || null;
-    } catch (error) {
-      console.error("Verify OTP failed:", error);
-      return null;
-    }
-  };
-
-  const resetPassword = async (userId: string, resetToken: string, newPassword: string) => {
-    try {
-      await api.post('/auth/reset-password', { userId, resetToken, newPassword });
-      return true;
-    } catch (error) {
-      console.error("Reset password failed:", error);
-      return false;
-    }
   };
 
   const addComplaint = async (complaint: Complaint) => {
@@ -891,11 +830,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateUserCoins,
         login,
         register,
-        verifyRegistrationOtp,
-        resendRegistrationOtp,
-        requestPasswordReset,
-        verifyPasswordResetOtp,
-        resetPassword,
         clearCart,
         refreshOrders,
         orders,

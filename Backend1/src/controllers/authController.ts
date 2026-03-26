@@ -22,13 +22,11 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     if (existingUser) return next(new AppError('Email already registered', 400));
 
     const passwordHash = await authService.hashPassword(password);
-    const otp = authService.generateOTP();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
     
     // Begin Transaction
     const user = await prisma.$transaction(async (tx: any) => {
       const newUser = await tx.user.create({
-        data: { name, email, passwordHash, role: dbRole, phone, address, otp, otpExpiry, isVerified: false }
+        data: { name, email, passwordHash, role: dbRole, phone, address }
       });
 
       if (dbRole === 'vendor') {
@@ -46,12 +44,13 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       return newUser;
     });
 
-    await notificationService.sendRegistrationOTP(user.email, otp);
+    const accessToken = authService.generateAccessToken(user.id, user.role);
+    const refreshToken = authService.generateRefreshToken(user.id);
 
     res.status(201).json({
       success: true,
-      message: 'OTP sent to email. Please verify.',
-      data: { userId: user.id }
+      message: 'Registration successful',
+      data: { user: sanitizeUser(user), accessToken, refreshToken }
     });
   } catch (error) {
     next(error);
@@ -65,10 +64,6 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || user.status === 'banned') {
       return next(new AppError('Invalid email or password', 401));
-    }
-    
-    if (!user.isVerified) {
-      return next(new AppError('Please verify your email to login.', 403));
     }
 
     if (user.role === 'vendor' || user.role === 'VENDOR' as any) {
@@ -180,60 +175,6 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
     await prisma.passwordResetToken.deleteMany({ where: { userId } });
 
     res.status(200).json({ success: true, message: 'Password reset successfully' });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const verifyRegistrationOtp = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { userId, otp } = req.body;
-    
-    const user = await prisma.user.findFirst({
-      where: { id: userId, otp, otpExpiry: { gt: new Date() } }
-    });
-
-    if (!user) return next(new AppError('Invalid or expired OTP', 400));
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { isVerified: true, otp: null, otpExpiry: null }
-    });
-
-    let returnUser = { ...user, isVerified: true };
-
-    const accessToken = authService.generateAccessToken(returnUser.id, returnUser.role);
-    const refreshToken = authService.generateRefreshToken(returnUser.id);
-
-    res.status(200).json({
-      success: true,
-      message: 'Email verified successfully',
-      data: { user: sanitizeUser(returnUser), accessToken, refreshToken }
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const resendRegistrationOtp = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { userId } = req.body;
-    
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) return next(new AppError('User not found', 404));
-    if (user.isVerified) return next(new AppError('User is already verified', 400));
-
-    const otp = authService.generateOTP();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { otp, otpExpiry }
-    });
-
-    await notificationService.sendRegistrationOTP(user.email, otp);
-
-    res.status(200).json({ success: true, message: 'OTP resent successfully' });
   } catch (error) {
     next(error);
   }

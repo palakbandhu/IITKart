@@ -11,7 +11,7 @@ interface ForgotPasswordProps {
 }
 
 export function ForgotPassword({ onBack }: ForgotPasswordProps) {
-  const { requestPasswordReset, verifyPasswordResetOtp, resetPassword } = useApp();
+  const { users, updateUser } = useApp();
 
   const [step, setStep] = useState<'identifier' | 'otp' | 'newPassword' | 'success'>('identifier');
   const [identifier, setIdentifier] = useState('');
@@ -20,11 +20,11 @@ export function ForgotPassword({ onBack }: ForgotPasswordProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [userId, setUserId] = useState('');
-  const [resetToken, setResetToken] = useState('');
+  const [generatedOTP, setGeneratedOTP] = useState('');
   const [otpAttempts, setOtpAttempts] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [otpExpiry, setOtpExpiry] = useState<number | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState(900);
+  const [timeRemaining, setTimeRemaining] = useState(300);
 
   useEffect(() => {
     if (step !== 'otp' || !otpExpiry) return;
@@ -38,79 +38,63 @@ export function ForgotPassword({ onBack }: ForgotPasswordProps) {
 
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-  const handleRequestReset = async (e: React.FormEvent) => {
+  const handleRequestReset = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    const uid = await requestPasswordReset(identifier);
-    if (!uid) { 
-      toast.error('Failed to send OTP. Account not found or network error.'); 
-      setIsLoading(false); 
-      return; 
-    }
-    
-    setUserId(uid);
-    setOtpExpiry(Date.now() + 900000); // 15 mins
-    setTimeRemaining(900);
-    toast.success(`OTP sent to your email!`);
-    setStep('otp'); 
-    setIsLoading(false);
+    setTimeout(() => {
+      const user = users.find((u: any) => u.email === identifier || u.phone === identifier);
+      if (!user) { toast.error('No account found with this email or phone'); setIsLoading(false); return; }
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      setGeneratedOTP(otp); setUserId(user.id);
+      setOtpExpiry(Date.now() + 300000); setTimeRemaining(300);
+      toast.success(`OTP sent! (Demo OTP: ${otp})`);
+      setStep('otp'); setIsLoading(false);
+    }, 800);
   };
 
-  const handleVerifyOTP = async (e: React.FormEvent) => {
+  const handleVerifyOTP = (e: React.FormEvent) => {
     e.preventDefault();
     if (otp.length !== 6) { toast.error('Please enter a 6-digit OTP'); return; }
     setIsLoading(true);
-    
-    if (otpExpiry && Date.now() > otpExpiry) { toast.error('OTP expired. Please request a new one.'); resetFlow(); setIsLoading(false); return; }
-    
-    const token = await verifyPasswordResetOtp(userId, otp);
-    if (token) { 
-      toast.success('OTP verified!'); 
-      setResetToken(token);
-      setStep('newPassword'); 
-    } else {
-      const att = otpAttempts + 1; setOtpAttempts(att);
-      if (att >= 3) { toast.error('Too many failed attempts. Try again later.'); resetFlow(); }
-      else { toast.error(`Incorrect OTP — ${3 - att} attempt(s) left`); setOtp(''); }
-    }
-    setIsLoading(false);
+    setTimeout(() => {
+      if (otpExpiry && Date.now() > otpExpiry) { toast.error('OTP expired'); resetFlow(); setIsLoading(false); return; }
+      if (otp === generatedOTP) { toast.success('OTP verified!'); setStep('newPassword'); }
+      else {
+        const att = otpAttempts + 1; setOtpAttempts(att);
+        if (att >= 3) { toast.error('Too many failed attempts'); resetFlow(); }
+        else { toast.error(`Incorrect OTP — ${3 - att} attempt(s) left`); setOtp(''); }
+      }
+      setIsLoading(false);
+    }, 800);
   };
 
-  const handleResetPassword = async (e: React.FormEvent) => {
+  const handleResetPassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 6) { toast.error('Password must be at least 6 characters'); return; }
     if (newPassword !== confirmPassword) { toast.error('Passwords do not match'); return; }
     setIsLoading(true);
-    
-    const success = await resetPassword(userId, resetToken, newPassword);
-    if (success) {
+    setTimeout(() => {
+      updateUser(userId, { password: newPassword });
       toast.success('Password reset successfully!');
-      setStep('success'); 
-    } else {
-      toast.error('Failed to reset password. Timeout or invalid token.');
-    }
-    setIsLoading(false);
+      setStep('success'); setIsLoading(false);
+    }, 800);
   };
 
   const resetFlow = () => {
     setStep('identifier'); setIdentifier(''); setOtp('');
     setNewPassword(''); setConfirmPassword(''); setUserId('');
-    setResetToken(''); setOtpAttempts(0); setOtpExpiry(null); setTimeRemaining(900);
+    setGeneratedOTP(''); setOtpAttempts(0); setOtpExpiry(null); setTimeRemaining(300);
   };
 
-  const handleResendOTP = async () => {
+  const handleResendOTP = () => {
     setIsLoading(true);
-    const uid = await requestPasswordReset(identifier);
-    if (uid) {
-      setUserId(uid);
-      setOtpAttempts(0); setOtp('');
-      setOtpExpiry(Date.now() + 900000); setTimeRemaining(900);
-      toast.success(`New OTP sent to your email!`);
-    } else {
-      toast.error('Failed to resend OTP.');
-    }
-    setIsLoading(false);
+    setTimeout(() => {
+      const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      setGeneratedOTP(newOtp); setOtpAttempts(0); setOtp('');
+      setOtpExpiry(Date.now() + 300000); setTimeRemaining(300);
+      toast.success(`New OTP sent! (Demo OTP: ${newOtp})`);
+      setIsLoading(false);
+    }, 800);
   };
 
   const steps = ['identifier', 'otp', 'newPassword', 'success'];
@@ -193,7 +177,7 @@ export function ForgotPassword({ onBack }: ForgotPasswordProps) {
                 </div>
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 flex items-start gap-2 text-xs text-[#1E3A8A] dark:text-blue-300 border border-blue-100 dark:border-blue-800/30">
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  A 6-digit OTP will be sent to your registered email safely.
+                  A 6-digit OTP will be sent to your registered email or phone. In demo mode, the OTP will be shown in a toast.
                 </div>
                 <button type="submit" disabled={isLoading}
                   className="w-full flex items-center justify-center h-12 bg-[#1E3A8A] hover:bg-[#2B4FBA] disabled:opacity-60 text-white font-bold rounded-xl transition-all shadow-lg active:scale-95">
@@ -222,9 +206,9 @@ export function ForgotPassword({ onBack }: ForgotPasswordProps) {
                   <span className={`font-bold ${timeRemaining < 60 ? 'text-red-500' : 'text-[#1E3A8A] dark:text-blue-300'}`}>⏱ {fmt(timeRemaining)}</span>
                 </div>
                 <div className="flex gap-2">
-                  <button type="button" onClick={handleResendOTP} disabled={isLoading || timeRemaining > 840}
+                  <button type="button" onClick={handleResendOTP} disabled={isLoading || timeRemaining > 240}
                     className="flex-1 h-11 border-2 border-blue-100 dark:border-blue-900/30 text-[#1E3A8A] dark:text-blue-300 font-bold rounded-xl text-sm hover:bg-blue-50 disabled:opacity-50 transition-colors">
-                    Resend {timeRemaining > 840 && `(${fmt(900 - timeRemaining)})`}
+                    Resend {timeRemaining > 240 && `(${fmt(300 - timeRemaining)})`}
                   </button>
                   <button type="submit" disabled={isLoading || otp.length !== 6}
                     className="flex-1 h-11 bg-[#1E3A8A] hover:bg-[#2B4FBA] disabled:opacity-60 text-white font-bold rounded-xl text-sm transition-all active:scale-95">

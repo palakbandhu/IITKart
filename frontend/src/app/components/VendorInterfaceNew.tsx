@@ -147,27 +147,19 @@ export function VendorInterface() {
   if (authLoading) return null;
   if (!currentUser || (currentUser.role !== 'VENDOR' && currentUser.role !== 'vendor')) return null;
 
-  const handleAddProduct = async () => {
+  const handleAddProduct = () => {
     if (!productForm.name.trim() || !productForm.price) { toast.error('Name and price are required'); return; }
-    try {
-      await addProduct({ id: `P${Date.now()}`, vendorId, vendorName: vendor?.name || 'My Shop', name: productForm.name, category: productForm.category, price: productForm.price, description: productForm.description, image: productForm.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400', inStock: productForm.stock > 0 });
-      toast.success('Product added!');
-      setShowProductDialog(false);
-      setProductForm({ name: '', category: 'Food', price: 0, description: '', image: '', stock: 10 });
-    } catch (err) {
-      toast.error('Failed to add product');
-    }
+    addProduct({ id: `P${Date.now()}`, vendorId, vendorName: vendor?.name || 'My Shop', name: productForm.name, category: productForm.category, price: productForm.price, description: productForm.description, image: productForm.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400', inStock: productForm.stock > 0 });
+    toast.success('Product added!');
+    setShowProductDialog(false);
+    setProductForm({ name: '', category: 'Food', price: 0, description: '', image: '', stock: 10 });
   };
 
-  const handleUpdateProduct = async () => {
+  const handleUpdateProduct = () => {
     if (!editingProduct) return;
-    try {
-      await updateProduct(editingProduct.id, { name: productForm.name, category: productForm.category, price: productForm.price, description: productForm.description, image: productForm.image || editingProduct.image, inStock: productForm.stock > 0 });
-      toast.success('Product updated!');
-      setEditingProduct(null);
-    } catch (err) {
-      toast.error('Failed to update product');
-    }
+    updateProduct(editingProduct.id, { name: productForm.name, category: productForm.category, price: productForm.price, description: productForm.description, image: productForm.image || editingProduct.image, inStock: productForm.stock > 0 });
+    toast.success('Product updated!');
+    setEditingProduct(null);
   };
 
   const openEdit = (p: Product) => {

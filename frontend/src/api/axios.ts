@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import axios from 'axios';
 
 const api = axios.create({
@@ -12,14 +11,9 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
-    if (config.headers) {
-      if (token) {
-        (config.headers as any).Authorization = `Bearer ${token}`;
-      }
-      // Let browser set the proper Content-Type with boundary for FormData
-      if (config.data instanceof FormData) {
-        delete (config.headers as any)['Content-Type'];
-      }
+    if (token) {
+      config.headers = config.headers || {};
+      (config.headers as any).Authorization = `Bearer ${token}`;
     }
     return config;
   },

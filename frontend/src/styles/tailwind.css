@@ -3,13 +3,6 @@
 
 @import 'tw-animate-css';
 
-/* ✅ ADD THIS */
-
-/* WITH this */
-body {
-  font-family: 'outfit', system-ui, sans-serif;
-}
-
 /* Toast notification custom styles for better visibility */
 [data-sonner-toast] [data-title] {
   color: #030213 !important;
@@ -20,7 +13,7 @@ body {
 [data-sonner-toast] [data-description] {
   color: #030213 !important;
   opacity: 1 !important;
-  font-weight: 700 !important;
+  font-weight: 500 !important;
 }
 
 [data-sonner-toast][data-type="success"] [data-description] {

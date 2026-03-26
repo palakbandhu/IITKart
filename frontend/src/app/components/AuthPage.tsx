@@ -23,13 +23,10 @@ type AppRole = 'CUSTOMER' | 'VENDOR' | 'RIDER' | 'ADMIN';
 
 export function AuthPage() {
   const navigate = useNavigate();
-  const { login, register, verifyRegistrationOtp, resendRegistrationOtp } = useApp();
+  const { login, register } = useApp();
 
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [awaitingOtp, setAwaitingOtp] = useState(false);
-  const [otp, setOtp] = useState('');
-  const [tempUserId, setTempUserId] = useState('');
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -104,7 +101,7 @@ export function AuthPage() {
     setLoading(true);
     await new Promise((r) => setTimeout(r, 600));
 
-    const response: any = await register(
+    const user = await register(
       registerData.name,
       registerData.email,
       registerData.password,
@@ -116,42 +113,11 @@ export function AuthPage() {
 
     setLoading(false);
 
-    if (response && response.status === 'otp_sent') {
-      toast.success('Registration successful. Please verify your email.');
-      setAwaitingOtp(true);
-      setTempUserId(response.userId);
-    } else {
-      toast.error('Registration failed. Try a different email.');
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otp || otp.length < 6) {
-      toast.error('Please enter a valid OTP');
-      return;
-    }
-
-    setLoading(true);
-    const user = await verifyRegistrationOtp(tempUserId, otp);
-    setLoading(false);
-
     if (user) {
       toast.success(`Welcome to IITKart, ${user.name}!`);
-      setAwaitingOtp(false);
-      setTempUserId('');
       navigateToRole(user.role as AppRole);
     } else {
-      toast.error('Invalid or expired OTP. Please try again.');
-    }
-  };
-
-  const handleResendOtp = async () => {
-    const success = await resendRegistrationOtp(tempUserId);
-    if (success) {
-      toast.success('A new OTP has been sent to your email.');
-    } else {
-      toast.error('Failed to resend OTP.');
+      toast.error('Registration failed. Try a different email.');
     }
   };
 
@@ -232,9 +198,9 @@ export function AuthPage() {
             {(['login', 'register'] as const).map((tab) => (
               <button
                 key={tab}
-                onClick={() => { setActiveTab(tab); setAwaitingOtp(false); }}
+                onClick={() => setActiveTab(tab)}
                 className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                  activeTab === tab && !awaitingOtp
+                  activeTab === tab
                     ? 'bg-[#1E3A8A] text-white shadow-md'
                     : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
                 }`}
@@ -244,62 +210,7 @@ export function AuthPage() {
             ))}
           </div>
 
-          {awaitingOtp ? (
-            <form onSubmit={handleVerifyOtp} className="space-y-5">
-              <div>
-                <h2 className="text-2xl font-extrabold text-[#0F172A] dark:text-white mb-1" style={{ fontFamily: 'Syne, sans-serif' }}>
-                  Check your email
-                </h2>
-                <p className="text-slate-500 dark:text-slate-400 text-sm">We've sent a 6-digit OTP to {registerData.email}</p>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-slate-700 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider">Verification Code</Label>
-                <div className="relative">
-                  <Input
-                    type="text"
-                    placeholder="Enter OTP"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    required
-                    maxLength={6}
-                    className="h-14 text-center text-xl tracking-widest font-mono bg-white dark:bg-[#0F1E3A] border-blue-100 dark:border-blue-900/40 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]/20 rounded-xl"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center px-1">
-                <button
-                  type="button"
-                  onClick={handleResendOtp}
-                  className="text-sm text-[#1E3A8A] dark:text-blue-400 font-semibold hover:underline"
-                >
-                  Resend Code
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAwaitingOtp(false)}
-                  className="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 font-semibold"
-                >
-                  Change Email
-                </button>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading || otp.length < 6}
-                className="w-full flex items-center justify-center gap-2 bg-[#1E3A8A] hover:bg-[#2B4FBA] disabled:opacity-60 text-white font-bold h-12 rounded-xl transition-all shadow-lg shadow-blue-900/20 hover:shadow-xl active:scale-95"
-              >
-                {loading ? (
-                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span>Verify Account</span> <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </form>
-          ) : activeTab === 'login' ? (
+          {activeTab === 'login' ? (
             <form onSubmit={handleLogin} className="space-y-5">
               <div>
                 <h2 className="text-2xl font-extrabold text-[#0F172A] dark:text-white mb-1" style={{ fontFamily: 'Syne, sans-serif' }}>

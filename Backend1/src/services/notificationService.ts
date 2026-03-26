@@ -25,26 +25,6 @@ export const notificationService = {
       logger.error('Failed to send OTP email', e);
     }
   },
-  sendRegistrationOTP: async (email: string, otp: string) => {
-    if (!env.SMTP_USER) return logger.warn(`SMTP not configured. Reg OTP for ${email}: ${otp}`);
-    try {
-      await transporter.sendMail({
-        from: env.FROM_EMAIL,
-        to: email,
-        subject: 'IITKart - Verify Your Email',
-        html: `
-          <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 500px; margin: 0 auto;">
-            <h2 style="color: #1E3A8A; text-align: center;">Welcome to IITKart!</h2>
-            <p>Your email verification OTP is</p>
-            <h1 style="text-align: center; color: #F97316; letter-spacing: 5px;">${otp}</h1>
-            <p style="text-align: center;">It will expire in 10 minutes. Please enter this code in the app to complete your registration.</p>
-          </div>
-        `
-      });
-    } catch (e) {
-      logger.error('Failed to send Registration OTP email', e);
-    }
-  },
   sendOrderConfirmation: async (email: string, orderId: string) => {
     if (!env.SMTP_USER) return logger.info(`Order confirmation for ${orderId}`);
     try {
