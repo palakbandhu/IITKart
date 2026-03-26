@@ -205,7 +205,7 @@ export const updateCourierJob = async (req: AuthRequest, res: Response, next: Ne
   } catch (error) { next(error); }
 };
 
-export const getDeliveryIssues = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getVendorDeliveryIssues = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const vendor = await prisma.vendor.findUnique({ where: { userId: req.user.id } });
     if (!vendor) return next(new AppError('Vendor not found', 404));
@@ -216,6 +216,7 @@ export const getDeliveryIssues = async (req: AuthRequest, res: Response, next: N
         order: {
           select: {
             id: true,
+            deliveryAddress: true,
             status: true,
             courier: { select: { name: true, phone: true } }
           }
@@ -225,5 +226,33 @@ export const getDeliveryIssues = async (req: AuthRequest, res: Response, next: N
     });
 
     res.status(200).json({ success: true, data: issues });
+  } catch (error) { next(error); }
+};
+
+export const updateDeliveryIssueStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { status, resolutionNotes } = req.body;
+    const { issueId } = req.params;
+
+    const vendor = await prisma.vendor.findUnique({ where: { userId: req.user.id } });
+    if (!vendor) return next(new AppError('Vendor not found', 404));
+
+    const existingIssue = await prisma.deliveryIssue.findFirst({
+      where: {
+        id: issueId,
+        order: { vendorId: vendor.id }
+      }
+    });
+
+    if (!existingIssue) {
+      return next(new AppError('Delivery issue not found or unauthorized', 404));
+    }
+
+    const updatedIssue = await prisma.deliveryIssue.update({
+      where: { id: issueId },
+      data: { status, resolutionNotes }
+    });
+
+    res.status(200).json({ success: true, data: updatedIssue, message: 'Delivery issue status updated successfully' });
   } catch (error) { next(error); }
 };

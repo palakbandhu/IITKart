@@ -406,10 +406,19 @@ export function CourierInterface() {
                 className="bg-[#F0F4FF] dark:bg-[#0A1628] border-blue-100 dark:border-blue-900/30 rounded-xl" rows={3} />
             </div>
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (!issueType || !issueDescription) { toast.error('Please fill in all fields'); return; }
-                toast.success('Issue reported successfully!');
-                setIssueDialog({ open: false, orderId: '' }); setIssueType(''); setIssuePriority('medium'); setIssueDescription('');
+                try {
+                  await api.post('/riders/issues', { 
+                    orderId: issueDialog.orderId,
+                    issueType: issueType.toLowerCase().replace(/ /g, '_'), 
+                    description: issueDescription 
+                  });
+                  toast.success('Issue reported successfully!');
+                  setIssueDialog({ open: false, orderId: '' }); setIssueType(''); setIssuePriority('medium'); setIssueDescription('');
+                } catch (error) {
+                  toast.error('Failed to report issue');
+                }
               }}
               className="w-full h-11 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white font-bold rounded-xl transition-all active:scale-95"
             >Submit Report</button>

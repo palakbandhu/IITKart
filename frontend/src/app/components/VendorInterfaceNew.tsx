@@ -13,9 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Package, Plus, Edit, Trash2, Star, Settings, Store, 
   ClipboardList, Mail, Phone, MapPin, DollarSign,
-  ShoppingCart, Truck, MessageSquare, RefreshCw
+  ShoppingCart, Truck, MessageSquare, RefreshCw, AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { VendorDeliveryIssues } from './VendorDeliveryIssues';
 
 function MetricCard({ label, value, icon: Icon, colorClass }: { label: string; value: string | number; icon: any; colorClass: string }) {
   return (
@@ -30,6 +31,7 @@ function MetricCard({ label, value, icon: Icon, colorClass }: { label: string; v
 const NAV_ITEMS: SidebarItem[] = [
   { id: 'orders',    label: 'Orders',    icon: ClipboardList },
   { id: 'inventory', label: 'Inventory', icon: Package       },
+  { id: 'issues',    label: 'Issues',    icon: AlertTriangle },
   { id: 'reviews',   label: 'Reviews',   icon: Star          },
   { id: 'settings',  label: 'Settings',  icon: Settings      },
 ];
@@ -337,6 +339,11 @@ export function VendorInterface() {
                   </div>
                 ))}
               </div>
+            )}
+
+            {/* ── ISSUES ── */}
+            {activeTab === 'issues' && (
+              <VendorDeliveryIssues />
             )}
 
             {/* ── SETTINGS ── */}

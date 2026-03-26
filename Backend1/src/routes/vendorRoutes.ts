@@ -26,7 +26,8 @@ router.patch('/me/orders/:orderId/accept', vendorController.acceptOrder);
 
 router.get('/me/reviews', vendorController.getVendorReviews);
 router.get('/me/analytics', vendorController.getVendorAnalytics);
-router.get('/me/delivery-issues', vendorController.getDeliveryIssues);
+router.get('/me/delivery-issues', vendorController.getVendorDeliveryIssues);
+router.patch('/me/delivery-issues/:issueId/status', vendorController.updateDeliveryIssueStatus);
 
 router.post('/me/courier-jobs', vendorController.createCourierJob);
 router.patch('/me/courier-jobs/:jobId', vendorController.updateCourierJob);
