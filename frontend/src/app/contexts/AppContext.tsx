@@ -154,7 +154,7 @@ export interface TransactionHistory {
 interface AppContextType {
   products: Product[];
   refreshProducts: () => Promise<void>;
-  addProduct: (product: Product) => void;
+  addProduct: (product: Product) => Promise<void>;
   removeProduct: (productId: string) => void;
   updateProduct: (productId: string, updates: Partial<Product>) => void;
   
@@ -459,11 +459,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       formData.append('price', String(product.price));
       formData.append('description', product.description);
       formData.append('inStock', String(product.inStock));
-      if (product.image) {
+      if (product.image && typeof product.image !== 'object') {
+        formData.append('image', product.image);
+      } else if (product.image instanceof File) {
         formData.append('image', product.image);
       }
-
-      // Don't set Content-Type manually; axios/browser will add the boundary.
+      
       const response = await api.post('/vendors/me/products', formData);
       const newProduct = { ...response.data.data, vendorName: currentUser?.name || 'My Shop' };
       setProducts(prev => [...prev, newProduct]);
@@ -474,6 +475,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         status: err?.response?.status,
         data: err?.response?.data
       });
+      throw error;
     }
   };
 
@@ -512,7 +514,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         status: err?.response?.status,
         data: err?.response?.data
       });
-      setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...updates } : p));
+      throw error;
     }
   };
 
