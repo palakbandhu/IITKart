@@ -41,12 +41,16 @@ const NAV_ITEMS: SidebarItem[] = [
 
 export function AdminInterface() {
   const navigate = useNavigate();
-  const { products, currentUser } = useApp();
+  const { products, currentUser, authLoading } = useApp();
   const [activeTab, setActiveTab]     = useState('dashboard');
   const [searchUser, setSearchUser]   = useState('');
   const [searchVendor, setSearchVendor] = useState('');
 
-  React.useEffect(() => { if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'admin')) navigate('/auth'); }, [currentUser, navigate]);
+  React.useEffect(() => {
+    if (authLoading) return;
+    if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'admin')) navigate('/auth');
+  }, [currentUser, authLoading, navigate]);
+  if (authLoading) return null;
   if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'admin')) return null;
 
   const [stats, setStats] = useState<any>(null);

@@ -11,7 +11,7 @@ interface HeaderProps {
 
 export function Header({ children }: HeaderProps) {
   const navigate = useNavigate();
-  const { cart, currentUser, setCurrentUser } = useApp();
+  const { cart, currentUser, logout } = useApp();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dark, setDark] = useState(false);
@@ -109,7 +109,7 @@ export function Header({ children }: HeaderProps) {
                     {currentUser.name.split(' ')[0]}
                   </span>
                   <button
-                    onClick={() => { setCurrentUser(null); navigate('/auth'); }}
+                    onClick={() => { logout(); navigate('/auth'); }}
                     className="flex items-center justify-center w-8 h-8 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                     title="Logout"
                   >
@@ -140,7 +140,7 @@ export function Header({ children }: HeaderProps) {
             </button>
             {currentUser && (
               <button
-                onClick={() => { setCurrentUser(null); navigate('/auth'); setMobileOpen(false); }}
+                onClick={() => { logout(); navigate('/auth'); setMobileOpen(false); }}
                 className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-red-500 hover:bg-red-50 transition-colors text-sm font-medium"
               >
                 <LogOut className="w-4 h-4" /> Logout

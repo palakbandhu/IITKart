@@ -159,6 +159,8 @@ interface AppContextType {
   
   currentUser: User | null;
   setCurrentUser: (user: User | null) => void;
+  authLoading: boolean;
+  logout: () => void;
   updateUserCoins: (userId: string, coins: number) => void;
   login: (email: string, password: string) => Promise<User | null>;
   register: (name: string, email: string, password: string, role: User['role'], phone?: string, address?: string) => Promise<User | null>;
@@ -309,6 +311,7 @@ const MOCK_DELIVERY_ISSUES: DeliveryIssue[] = [
 export function AppProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [courierJobs, setCourierJobs] = useState<CourierJob[]>([]);
@@ -347,6 +350,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
     
     fetchInitialData();
+  }, []);
+
+  // Re-hydrate auth state on refresh from the persisted JWT.
+  React.useEffect(() => {
+    const initAuth = async () => {
+      // Prevent permanent blank screens if /auth/me hangs.
+      const timeoutMs = 8000;
+      let settled = false;
+      const timeoutId = window.setTimeout(() => {
+        if (!settled) setAuthLoading(false);
+      }, timeoutMs);
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setCurrentUser(null);
+        setAuthLoading(false);
+        settled = true;
+        window.clearTimeout(timeoutId);
+        return;
+      }
+
+      try {
+        const res = await api.get('/auth/me');
+        setCurrentUser(res.data.data);
+      } catch (e: any) {
+        // Token invalid/expired or backend unreachable; fall back to logged-out.
+        try { localStorage.removeItem('token'); } catch {}
+        setCurrentUser(null);
+      } finally {
+        settled = true;
+        window.clearTimeout(timeoutId);
+        setAuthLoading(false);
+      }
+    };
+
+    initAuth();
   }, []);
 
   React.useEffect(() => {
@@ -648,6 +687,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const logout = () => {
+    try { localStorage.removeItem('token'); } catch {}
+    setCurrentUser(null);
+  };
+
   const addComplaint = async (complaint: Complaint) => {
     try {
       if (complaint.orderId) await api.post(`/orders/${complaint.orderId}/complaint`, complaint);
@@ -739,6 +783,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateProduct,
         currentUser,
         setCurrentUser,
+        authLoading,
+        logout,
         updateUserCoins,
         login,
         register,

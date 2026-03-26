@@ -44,9 +44,9 @@ const NAV_ITEMS: SidebarItem[] = [
 export function UserInterface() {
   const navigate = useNavigate();
   const {
-    products, currentUser, setCurrentUser, cart, addToCart, removeFromCart,
+    products, currentUser, cart, addToCart, removeFromCart,
     updateCartQuantity, clearCart, addOrder, updateOrder, orders, vendors,
-    updateUser, addComplaint, rateOrder, complaints
+    updateUser, addComplaint, rateOrder, complaints, authLoading, logout
   } = useApp();
 
   const [activeTab, setActiveTab]     = useState('browse');
@@ -74,8 +74,10 @@ export function UserInterface() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingOrder, setPendingOrder] = useState<any>(null);
 
-  React.useEffect(() => { if (!currentUser) navigate('/auth'); }, [currentUser, navigate]);
-  if (!currentUser) return null;
+  React.useEffect(() => {
+    if (authLoading) return;
+    if (!currentUser) navigate('/auth');
+  }, [currentUser, authLoading, navigate]);
 
   const getImageUrl = (url?: string | null) => {
     if (!url) return '';
@@ -102,7 +104,7 @@ export function UserInterface() {
     return Array.from(m.entries());
   }, [filteredProducts]);
 
-  const userOrders    = orders.filter(o => o.userId === currentUser.id);
+  const userOrders    = currentUser ? orders.filter(o => o.userId === currentUser.id) : [];
   const pendingOrders = userOrders.filter(o => o.status !== 'delivered').length;
   const cartTotal      = cart.reduce((s, i) => s + (products.find(p => p.id === i.productId)?.price || 0) * i.quantity, 0);
   const deliveryCharges = 30;
@@ -179,6 +181,9 @@ export function UserInterface() {
     const w = window.open('', '_blank');
     if (w) { w.document.write(`<html><head><title>Receipt</title><style>body{font-family:monospace;white-space:pre;padding:20px}</style></head><body>${generateReceipt(order)}</body></html>`); w.document.close(); w.focus(); setTimeout(() => w.print(), 250); }
   };
+
+  if (authLoading) return null;
+  if (!currentUser) return null;
 
   return (
     <div className="min-h-screen bg-[#F0F4FF] dark:bg-[#0A1628] flex flex-col">
@@ -641,7 +646,7 @@ export function UserInterface() {
                       }
                     }}
                       className="flex-1 h-11 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white font-bold rounded-xl transition-all shadow-md active:scale-95 text-sm">Save Changes</button>
-                    <button onClick={() => { setCurrentUser(null); navigate('/auth'); }}
+                    <button onClick={() => { logout(); navigate('/auth'); }}
                       className="flex-1 h-11 border-2 border-red-200 dark:border-red-900/30 text-red-500 font-bold rounded-xl hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors text-sm">Logout</button>
                   </div>
                 </div>

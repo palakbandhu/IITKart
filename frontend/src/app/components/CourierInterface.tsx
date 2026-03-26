@@ -27,9 +27,13 @@ function MetricCard({ label, value, icon: Icon, colorClass }: { label: string; v
 
 export function CourierInterface() {
   const navigate = useNavigate();
-  const { currentUser, setCurrentUser } = useApp();
+  const { currentUser, authLoading, logout } = useApp();
 
-  useEffect(() => { if (!currentUser || (currentUser.role !== 'RIDER' && currentUser.role !== 'courier')) navigate('/auth'); }, [currentUser, navigate]);
+  useEffect(() => {
+    if (authLoading) return;
+    if (!currentUser || (currentUser.role !== 'RIDER' && currentUser.role !== 'courier')) navigate('/auth');
+  }, [currentUser, authLoading, navigate]);
+  if (authLoading) return null;
   if (!currentUser || (currentUser.role !== 'RIDER' && currentUser.role !== 'courier')) return null;
 
   const [activeTab, setActiveTab] = useState('deliveries');
@@ -361,7 +365,7 @@ export function CourierInterface() {
                   })}
                   <div className="flex gap-3 pt-2">
                     <button onClick={() => toast.success('Settings saved!')} className="flex-1 h-11 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white font-bold rounded-xl text-sm transition-all active:scale-95">Save</button>
-                    <button onClick={() => { setCurrentUser(null); navigate('/auth'); }} className="flex-1 h-11 border-2 border-red-200 dark:border-red-900/30 text-red-500 font-bold rounded-xl text-sm hover:bg-red-50 transition-colors">Logout</button>
+                    <button onClick={() => { logout(); navigate('/auth'); }} className="flex-1 h-11 border-2 border-red-200 dark:border-red-900/30 text-red-500 font-bold rounded-xl text-sm hover:bg-red-50 transition-colors">Logout</button>
                   </div>
                 </div>
               </div>

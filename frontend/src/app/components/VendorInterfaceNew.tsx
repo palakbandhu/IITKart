@@ -89,9 +89,13 @@ function ProductFormFields({ productForm, setProductForm, onSubmit, label }: { p
 
 export function VendorInterface() {
   const navigate = useNavigate();
-  const { products, addProduct, removeProduct, updateProduct, orders, refreshOrders, currentUser, setCurrentUser, vendors, courierProfiles, users, updateOrderStatus } = useApp();
+  const { products, addProduct, removeProduct, updateProduct, orders, refreshOrders, currentUser, authLoading, logout, vendors, courierProfiles, users, updateOrderStatus } = useApp();
 
-  React.useEffect(() => { if (!currentUser || (currentUser.role !== 'VENDOR' && currentUser.role !== 'vendor')) navigate('/auth'); }, [currentUser, navigate]);
+  React.useEffect(() => {
+    if (authLoading) return;
+    if (!currentUser || (currentUser.role !== 'VENDOR' && currentUser.role !== 'vendor')) navigate('/auth');
+  }, [currentUser, authLoading, navigate]);
+  if (authLoading) return null;
   if (!currentUser || (currentUser.role !== 'VENDOR' && currentUser.role !== 'vendor')) return null;
 
   const getImageUrl = (url?: string | null) => {
@@ -369,7 +373,7 @@ export function VendorInterface() {
                   })}
                   <div className="flex gap-3 pt-2">
                     <button onClick={() => toast.success('Settings saved!')} className="flex-1 h-11 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white font-bold rounded-xl transition-all active:scale-95 text-sm">Save Changes</button>
-                    <button onClick={() => { setCurrentUser(null); navigate('/auth'); }} className="flex-1 h-11 border-2 border-red-200 dark:border-red-900/30 text-red-500 font-bold rounded-xl hover:bg-red-50 transition-colors text-sm">Logout</button>
+                    <button onClick={() => { logout(); navigate('/auth'); }} className="flex-1 h-11 border-2 border-red-200 dark:border-red-900/30 text-red-500 font-bold rounded-xl hover:bg-red-50 transition-colors text-sm">Logout</button>
                   </div>
                 </div>
               </div>
