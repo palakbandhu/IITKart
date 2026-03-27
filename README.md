@@ -1,5 +1,5 @@
 
-# IITKart - Full-Stack E-Commerce & Delivery Platform
+# IITKart 
 
 IITKart is a comprehensive campus e-commerce and delivery platform designed to connect Customers, Vendors, and Riders (Delivery Partners) within the campus ecosystem. It features real-time order tracking, email OTP verification, and a dedicated Super Admin dashboard.
 
