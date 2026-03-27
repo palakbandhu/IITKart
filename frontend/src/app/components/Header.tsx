@@ -33,11 +33,10 @@ export function Header({ children }: HeaderProps) {
 
   return (
     <header
-      className={`sticky top-0 z-50 transition-all duration-300 ${
-        scrolled
+      className={`sticky top-0 z-50 transition-all duration-300 ${scrolled
           ? 'bg-white/90 dark:bg-[#0F1E3A]/90 backdrop-blur-xl shadow-lg shadow-blue-900/10 border-b border-blue-100/50 dark:border-blue-900/30'
           : 'bg-white dark:bg-[#0F1E3A] border-b border-blue-50 dark:border-blue-900/20'
-      }`}
+        }`}
     >
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-18">
@@ -89,17 +88,6 @@ export function Header({ children }: HeaderProps) {
 
             {currentUser && (
               <>
-                <button
-                  className="relative hidden md:flex items-center justify-center w-9 h-9 rounded-xl text-slate-500 hover:text-[#1E3A8A] hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-                  onClick={() => {/* cart handled by child */}}
-                >
-                  <ShoppingCart className="w-4 h-4" />
-                  {cartCount > 0 && (
-                    <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px] bg-[#F97316] border-2 border-white">
-                      {cartCount}
-                    </Badge>
-                  )}
-                </button>
 
                 <div className="hidden md:flex items-center gap-2 pl-2 border-l border-slate-100 dark:border-slate-700">
                   <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/40">

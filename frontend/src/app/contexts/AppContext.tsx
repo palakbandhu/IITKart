@@ -153,7 +153,8 @@ export interface TransactionHistory {
 
 interface AppContextType {
   products: Product[];
-  addProduct: (product: Product) => void;
+  refreshProducts: () => Promise<void>;
+  addProduct: (product: Product) => Promise<void>;
   removeProduct: (productId: string) => void;
   updateProduct: (productId: string, updates: Partial<Product>) => void;
   
@@ -163,7 +164,13 @@ interface AppContextType {
   logout: () => void;
   updateUserCoins: (userId: string, coins: number) => void;
   login: (email: string, password: string) => Promise<User | null>;
-  register: (name: string, email: string, password: string, role: User['role'], phone?: string, address?: string) => Promise<User | null>;
+  register: (name: string, email: string, password: string, role: User['role'], phone?: string, address?: string) => Promise<any>;
+  verifyRegistrationOtp: (userId: string, otp: string) => Promise<User | null>;
+  resendRegistrationOtp: (userId: string) => Promise<boolean>;
+  
+  requestPasswordReset: (email: string) => Promise<string | null>;
+  verifyPasswordResetOtp: (userId: string, otp: string) => Promise<string | null>;
+  resetPassword: (userId: string, resetToken: string, newPassword: string) => Promise<boolean>;
   
   orders: Order[];
   refreshOrders: () => Promise<void>;
@@ -388,6 +395,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     initAuth();
   }, []);
 
+  const refreshProducts = async () => {
+    try {
+      const cacheBust = `?t=${Date.now()}`;
+      const res = await api.get('/vendors/products' + cacheBust);
+      let allProducts = res.data.data.map((p: any) => ({
+        ...p,
+        vendorName: p.vendor?.name || "Unknown Vendor"
+      }));
+      
+      if (currentUser && (currentUser.role === 'VENDOR' || currentUser.role === 'vendor')) {
+        try {
+          const myProductsRes = await api.get('/vendors/me/products' + cacheBust);
+          const myProducts = myProductsRes.data.data.map((p: any) => ({
+            ...p,
+            vendorName: currentUser.name || "My Shop"
+          }));
+          const myProductIds = new Set(myProducts.map((p: any) => p.id));
+          allProducts = allProducts.filter((p: any) => !myProductIds.has(p.id)).concat(myProducts);
+        } catch(e) {}
+      }
+      setProducts(allProducts);
+    } catch(e) {}
+  };
+
   React.useEffect(() => {
     let intervalId: any;
 
@@ -409,10 +440,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         api.get('/users/complaints').then(res => setComplaints(res.data.data));
       }
       fetchOrders();
-      intervalId = setInterval(fetchOrders, 3000); // Poll every 3 seconds for instant updates
+      refreshProducts();
+      intervalId = setInterval(() => {
+        fetchOrders();
+        refreshProducts();
+      }, 3000); // Poll every 3 seconds for instant updates
     } else {
       setOrders([]);
       setComplaints([]);
+      refreshProducts();
+      intervalId = setInterval(() => {
+        refreshProducts();
+      }, 3000);
     }
 
     return () => clearInterval(intervalId);
@@ -426,11 +465,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       formData.append('price', String(product.price));
       formData.append('description', product.description);
       formData.append('inStock', String(product.inStock));
-      if (product.image) {
+      if (product.image && typeof product.image !== 'object') {
+        formData.append('image', product.image);
+      } else if (product.image instanceof File) {
         formData.append('image', product.image);
       }
-
-      // Don't set Content-Type manually; axios/browser will add the boundary.
+      
       const response = await api.post('/vendors/me/products', formData);
       const newProduct = { ...response.data.data, vendorName: currentUser?.name || 'My Shop' };
       setProducts(prev => [...prev, newProduct]);
@@ -441,6 +481,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         status: err?.response?.status,
         data: err?.response?.data
       });
+      throw error;
     }
   };
 
@@ -479,7 +520,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         status: err?.response?.status,
         data: err?.response?.data
       });
-      setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...updates } : p));
+      throw error;
     }
   };
 
@@ -685,12 +726,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const register = async (name: string, email: string, password: string, role: User['role'], phone?: string, address?: string) => {
     try {
       const response = await api.post('/auth/register', { name, email, password, role, phone, address });
+      if (response.data?.data?.userId) {
+        return { status: 'otp_sent', userId: response.data.data.userId };
+      }
+      return null;
+    } catch (error) {
+      console.error("Registration failed:", error);
+      return null;
+    }
+  };
+
+  const verifyRegistrationOtp = async (userId: string, otp: string) => {
+    try {
+      const response = await api.post('/auth/verify-email', { userId, otp });
       const { user, accessToken } = response.data.data;
       localStorage.setItem('token', accessToken);
       setCurrentUser(user);
       return user;
     } catch (error) {
-      console.error("Registration failed:", error);
+      console.error("OTP Verification failed:", error);
       return null;
     }
   };
@@ -698,6 +752,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     try { localStorage.removeItem('token'); } catch {}
     setCurrentUser(null);
+  };
+
+  const resendRegistrationOtp = async (userId: string) => {
+    try {
+      await api.post('/auth/resend-otp', { userId });
+      return true;
+    } catch (error) {
+      console.error("Resend OTP failed:", error);
+      return false;
+    }
+  };
+
+  const requestPasswordReset = async (email: string) => {
+    try {
+      const res = await api.post('/auth/forgot-password', { identifier: email });
+      return res.data?.data?.userId || null;
+    } catch (error) {
+      console.error("Forgot password failed:", error);
+      return null;
+    }
+  };
+
+  const verifyPasswordResetOtp = async (userId: string, otp: string) => {
+    try {
+      const res = await api.post('/auth/verify-otp', { userId, otp });
+      return res.data?.data?.resetToken || null;
+    } catch (error) {
+      console.error("Verify OTP failed:", error);
+      return null;
+    }
+  };
+
+  const resetPassword = async (userId: string, resetToken: string, newPassword: string) => {
+    try {
+      await api.post('/auth/reset-password', { userId, resetToken, newPassword });
+      return true;
+    } catch (error) {
+      console.error("Reset password failed:", error);
+      return false;
+    }
   };
 
   const addComplaint = async (complaint: Complaint) => {
@@ -786,6 +880,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider
       value={{
         products,
+        refreshProducts,
         addProduct,
         removeProduct,
         updateProduct,
@@ -796,6 +891,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateUserCoins,
         login,
         register,
+        verifyRegistrationOtp,
+        resendRegistrationOtp,
+        requestPasswordReset,
+        verifyPasswordResetOtp,
+        resetPassword,
         clearCart,
         refreshOrders,
         orders,

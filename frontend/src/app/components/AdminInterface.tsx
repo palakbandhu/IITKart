@@ -46,13 +46,6 @@ export function AdminInterface() {
   const [searchUser, setSearchUser]   = useState('');
   const [searchVendor, setSearchVendor] = useState('');
 
-  React.useEffect(() => {
-    if (authLoading) return;
-    if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'admin')) navigate('/auth');
-  }, [currentUser, authLoading, navigate]);
-  if (authLoading) return null;
-  if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'admin')) return null;
-
   const [stats, setStats] = useState<any>(null);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [adminVendors, setAdminVendors] = useState<any[]>([]);
@@ -60,7 +53,12 @@ export function AdminInterface() {
   const [adminComplaints, setAdminComplaints] = useState<any[]>([]);
 
   React.useEffect(() => {
-    if (currentUser?.role === 'ADMIN') {
+    if (authLoading) return;
+    if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'admin')) navigate('/auth');
+  }, [currentUser, authLoading, navigate]);
+
+  React.useEffect(() => {
+    if (currentUser?.role === 'ADMIN' || currentUser?.role === 'admin') {
       api.get('/admin/stats').then(res => setStats(res.data.data)).catch(console.error);
       api.get('/admin/users?limit=100').then(res => setAdminUsers(res.data.data)).catch(console.error);
       api.get('/admin/vendors?limit=100').then(res => setAdminVendors(res.data.data)).catch(console.error);
@@ -68,6 +66,20 @@ export function AdminInterface() {
       api.get('/admin/complaints?limit=100').then(res => setAdminComplaints(res.data.data)).catch(console.error);
     }
   }, [currentUser]);
+
+  const weeklyData = useMemo(() => {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return days.map((day, i) => ({ day, orders: 10 + i * 3 + (i % 2 ? 5 : 0), revenue: 1000 + i * 400 }));
+  }, []);
+
+  const statusData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    adminOrders.forEach(o => { counts[o.status] = (counts[o.status] || 0) + 1; });
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [adminOrders]);
+
+  if (authLoading) return null;
+  if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'admin')) return null;
 
   const metrics = stats ? {
     total: stats.totalOrders,
@@ -81,17 +93,6 @@ export function AdminInterface() {
   } : {
     total: 0, today: 0, gmv: 0, commission: 0, activeUsers: 0, activeVendors: 0, pendingComplaints: 0, successRate: 0
   };
-
-  const weeklyData = useMemo(() => {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return days.map((day, i) => ({ day, orders: 10 + i * 3 + (i % 2 ? 5 : 0), revenue: 1000 + i * 400 }));
-  }, []);
-
-  const statusData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    adminOrders.forEach(o => { counts[o.status] = (counts[o.status] || 0) + 1; });
-    return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  }, [adminOrders]);
 
   const navItems = NAV_ITEMS.map(item => ({
     ...item,

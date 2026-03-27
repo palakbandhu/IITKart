@@ -68,8 +68,16 @@ export const addProduct = async (req: any, res: Response, next: NextFunction) =>
     let inStock = req.body.inStock === 'true' || req.body.inStock === true;
     let image = req.body.image;
     
+    if (image && typeof image === 'object') {
+      image = undefined;
+    }
+    
     if (req.file) {
       image = `/uploads/${req.file.filename}`;
+    }
+    
+    if (!image || typeof image !== 'string') {
+      image = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400';
     }
 
     const vendor = await prisma.vendor.findUnique({ where: { userId: req.user.id } });
@@ -97,6 +105,10 @@ export const updateProduct = async (req: any, res: Response, next: NextFunction)
     const updateData = { ...req.body };
     if (req.body.price !== undefined) updateData.price = Number(req.body.price);
     if (req.body.inStock !== undefined) updateData.inStock = req.body.inStock === 'true' || req.body.inStock === true;
+    
+    if (updateData.image && typeof updateData.image === 'object') {
+      delete updateData.image;
+    }
     
     if (req.file) {
       updateData.image = `/uploads/${req.file.filename}`;

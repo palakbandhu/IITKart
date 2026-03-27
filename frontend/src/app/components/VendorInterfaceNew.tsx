@@ -95,8 +95,6 @@ export function VendorInterface() {
     if (authLoading) return;
     if (!currentUser || (currentUser.role !== 'VENDOR' && currentUser.role !== 'vendor')) navigate('/auth');
   }, [currentUser, authLoading, navigate]);
-  if (authLoading) return null;
-  if (!currentUser || (currentUser.role !== 'VENDOR' && currentUser.role !== 'vendor')) return null;
 
   const getImageUrl = (url?: string | null) => {
     if (!url) return '';
@@ -105,8 +103,8 @@ export function VendorInterface() {
   };
 
   const [activeTab, setActiveTab] = useState('orders');
-  const vendor   = vendors.find(v => v.userId === currentUser.id);
-  const vendorId = vendor?.id || currentUser.id;
+  const vendor   = vendors.find(v => v.userId === currentUser?.id);
+  const vendorId = vendor?.id || currentUser?.id;
   const vendorProducts  = products.filter(p => p.vendorId === vendorId);
   const vendorOrders    = orders; // API natively pre-filters to the authenticated Vendor's scope
   const activeOrders    = vendorOrders.filter(o => ['pending', 'accepted', 'picked'].includes(o.status));
@@ -146,19 +144,30 @@ export function VendorInterface() {
     }
   };
 
-  const handleAddProduct = () => {
+  if (authLoading) return null;
+  if (!currentUser || (currentUser.role !== 'VENDOR' && currentUser.role !== 'vendor')) return null;
+
+  const handleAddProduct = async () => {
     if (!productForm.name.trim() || !productForm.price) { toast.error('Name and price are required'); return; }
-    addProduct({ id: `P${Date.now()}`, vendorId, vendorName: vendor?.name || 'My Shop', name: productForm.name, category: productForm.category, price: productForm.price, description: productForm.description, image: productForm.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400', inStock: productForm.stock > 0 });
-    toast.success('Product added!');
-    setShowProductDialog(false);
-    setProductForm({ name: '', category: 'Food', price: 0, description: '', image: '', stock: 10 });
+    try {
+      await addProduct({ id: `P${Date.now()}`, vendorId, vendorName: vendor?.name || 'My Shop', name: productForm.name, category: productForm.category, price: productForm.price, description: productForm.description, image: productForm.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400', inStock: productForm.stock > 0 });
+      toast.success('Product added!');
+      setShowProductDialog(false);
+      setProductForm({ name: '', category: 'Food', price: 0, description: '', image: '', stock: 10 });
+    } catch (err) {
+      toast.error('Failed to add product');
+    }
   };
 
-  const handleUpdateProduct = () => {
+  const handleUpdateProduct = async () => {
     if (!editingProduct) return;
-    updateProduct(editingProduct.id, { name: productForm.name, category: productForm.category, price: productForm.price, description: productForm.description, image: productForm.image || editingProduct.image, inStock: productForm.stock > 0 });
-    toast.success('Product updated!');
-    setEditingProduct(null);
+    try {
+      await updateProduct(editingProduct.id, { name: productForm.name, category: productForm.category, price: productForm.price, description: productForm.description, image: productForm.image || editingProduct.image, inStock: productForm.stock > 0 });
+      toast.success('Product updated!');
+      setEditingProduct(null);
+    } catch (err) {
+      toast.error('Failed to update product');
+    }
   };
 
   const openEdit = (p: Product) => {

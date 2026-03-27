@@ -6,3 +6,4 @@ node_modules
 /generated/prisma
 Backend1/logsBackend1/uploads/*
 !Backend1/uploads/.gitkeep
+Backend1/uploads/

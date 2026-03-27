@@ -10,12 +10,13 @@ async function ensureSuperAdmin() {
     const passwordHash = await bcrypt.hash('admin@123', 12);
     await prisma.user.upsert({
       where: { email },
-      update: { passwordHash, role: 'admin' },
+      update: { passwordHash, role: 'admin', isVerified: true },
       create: {
         name: 'Super Admin',
         email,
         passwordHash,
-        role: 'admin'
+        role: 'admin',
+        isVerified: true
       }
     });
     logger.info('🔑 Super Admin account guaranteed (admin@iitk.ac.in / admin@123)');

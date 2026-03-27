@@ -33,8 +33,6 @@ export function CourierInterface() {
     if (authLoading) return;
     if (!currentUser || (currentUser.role !== 'RIDER' && currentUser.role !== 'courier')) navigate('/auth');
   }, [currentUser, authLoading, navigate]);
-  if (authLoading) return null;
-  if (!currentUser || (currentUser.role !== 'RIDER' && currentUser.role !== 'courier')) return null;
 
   const [activeTab, setActiveTab] = useState('deliveries');
   
@@ -128,6 +126,9 @@ export function CourierInterface() {
   const [issueType, setIssueType]           = useState('');
   const [issuePriority, setIssuePriority]   = useState('medium');
   const [issueDescription, setIssueDescription] = useState('');
+
+  if (authLoading) return null;
+  if (!currentUser || (currentUser.role !== 'RIDER' && currentUser.role !== 'courier')) return null;
 
   const handleAccept = async (orderId: string) => {
     setIncomingPopup({ open: false, order: null });
