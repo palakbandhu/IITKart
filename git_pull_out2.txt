@@ -1,0 +1,18 @@
+From https://github.com/virendrakala/Demo
+ * branch            main       -> FETCH_HEAD
+warning: in the working copy of 'Backend1/prisma/migrations/migration_lock.toml', LF will be replaced by CRLF the next time Git touches it
+error: Your local changes to the following files would be overwritten by merge:
+  .gitignore Backend1/.gitignore Backend1/debug.js Backend1/logs/combined 2.log Backend1/logs/combined 3.log Backend1/logs/combined.log Backend1/logs/error.log Backend1/out.txt Backend1/prisma/schema.prisma Backend1/src/controllers/authController.ts Backend1/src/controllers/vendorController.ts Backend1/src/routes/authRoutes.ts Backend1/src/services/notificationService.ts Backend1/testUsers.ts Backend1/testVendor.ts frontend/dist/assets/README.md frontend/dist/assets/background.svg frontend/dist/assets/home-background.svg frontend/dist/assets/iitKart-logo.jpg frontend/dist/assets/index-B-Dfb3ea.js frontend/dist/assets/index-BjVrTkt1.css frontend/dist/assets/logo.svg frontend/dist/index.html frontend/index.html frontend/src/api/axios.ts frontend/src/app/components/AdminInterface.tsx frontend/src/app/components/AuthPage.tsx frontend/src/app/components/CourierInterface.tsx frontend/src/app/components/ForgotPassword.tsx frontend/src/app/components/Header.tsx frontend/src/app/components/VendorInterfaceNew.tsx frontend/src/app/contexts/AppContext.tsx frontend/src/styles/fonts.css frontend/src/styles/tailwind.css package-lock.json
+<stdin>:281: trailing whitespace.
+    
+<stdin>:295: trailing whitespace.
+    
+<stdin>:325: trailing whitespace.
+    
+<stdin>:360: trailing whitespace.
+    
+<stdin>:364: trailing whitespace.
+    
+warning: squelched 32 whitespace errors
+warning: 37 lines add whitespace errors.
+Merge with strategy ort failed.

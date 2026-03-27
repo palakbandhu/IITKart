@@ -1,0 +1,4 @@
+From https://github.com/virendrakala/Demo
+ * branch            main       -> FETCH_HEAD
+CONFLICT (modify/delete): Backend1/.gitignore deleted in HEAD and modified in 35a14735099ab9bd4bac8ecb8b544b8ce2e28cad.  Version 35a14735099ab9bd4bac8ecb8b544b8ce2e28cad of Backend1/.gitignore left in tree.
+Automatic merge failed; fix conflicts and then commit the result.

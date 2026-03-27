@@ -32,33 +32,19 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     const otp = authService.generateOTP();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
     
-    // Begin Transaction
-    const user = await prisma.$transaction(async (tx: any) => {
-      const newUser = await tx.user.create({
-        data: { name, email, passwordHash, role: dbRole, phone, address, otp, otpExpiry, isVerified: false }
-      });
-
-      if (dbRole === 'vendor') {
-        await tx.vendor.create({
-          data: { userId: newUser.id, name: `${name}'s Shop`, email }
-        });
-      }
-
-      if (dbRole === 'courier') {
-        await tx.courierProfile.create({
-          data: { userId: newUser.id }
-        });
-      }
-
-      return newUser;
+    // Upsert into PendingUser
+    const pendingUser = await prisma.pendingUser.upsert({
+      where: { email },
+      update: { name, passwordHash, role: dbRole, phone, address, otp, otpExpiry },
+      create: { name, email, passwordHash, role: dbRole, phone, address, otp, otpExpiry }
     });
 
-    await notificationService.sendRegistrationOTP(user.email, otp);
+    await notificationService.sendRegistrationOTP(pendingUser.email, otp);
 
     res.status(201).json({
       success: true,
       message: 'OTP sent to email. Please verify.',
-      data: { userId: user.id }
+      data: { userId: pendingUser.id }
     });
   } catch (error) {
     next(error);
@@ -196,15 +182,41 @@ export const verifyRegistrationOtp = async (req: Request, res: Response, next: N
   try {
     const { userId, otp } = req.body;
     
-    const user = await prisma.user.findFirst({
+    const pendingUser = await prisma.pendingUser.findFirst({
       where: { id: userId, otp, otpExpiry: { gt: new Date() } }
     });
 
-    if (!user) return next(new AppError('Invalid or expired OTP', 400));
+    if (!pendingUser) return next(new AppError('Invalid or expired OTP', 400));
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: { isVerified: true, otp: null, otpExpiry: null }
+    // Transaction to create real user and remove pending
+    const user = await prisma.$transaction(async (tx: any) => {
+      const newUser = await tx.user.create({
+        data: {
+          name: pendingUser.name,
+          email: pendingUser.email,
+          passwordHash: pendingUser.passwordHash,
+          role: pendingUser.role,
+          phone: pendingUser.phone,
+          address: pendingUser.address,
+          isVerified: true
+        }
+      });
+
+      if (pendingUser.role === 'vendor') {
+        await tx.vendor.create({
+          data: { userId: newUser.id, name: `${newUser.name}'s Shop`, email: newUser.email }
+        });
+      }
+
+      if (pendingUser.role === 'courier') {
+        await tx.courierProfile.create({
+          data: { userId: newUser.id }
+        });
+      }
+
+      await tx.pendingUser.delete({ where: { id: pendingUser.id } });
+
+      return newUser;
     });
 
     let returnUser = { ...user, isVerified: true };
@@ -226,19 +238,22 @@ export const resendRegistrationOtp = async (req: Request, res: Response, next: N
   try {
     const { userId } = req.body;
     
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) return next(new AppError('User not found', 404));
-    if (user.isVerified) return next(new AppError('User is already verified', 400));
+    const pendingUser = await prisma.pendingUser.findUnique({ where: { id: userId } });
+    if (!pendingUser) {
+      const existingUser = await prisma.user.findUnique({ where: { id: userId } });
+      if (existingUser && existingUser.isVerified) return next(new AppError('User is already verified', 400));
+      return next(new AppError('User not found in pending registrations', 404));
+    }
 
     const otp = authService.generateOTP();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    await prisma.user.update({
+    await prisma.pendingUser.update({
       where: { id: userId },
       data: { otp, otpExpiry }
     });
 
-    await notificationService.sendRegistrationOTP(user.email, otp);
+    await notificationService.sendRegistrationOTP(pendingUser.email, otp);
 
     res.status(200).json({ success: true, message: 'OTP resent successfully' });
   } catch (error) {

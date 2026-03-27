@@ -1,0 +1,6 @@
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Error: 
+EPERM: operation not permitted, rename 'C:\Users\prave\OneDrive\Desktop\new_iitkart\Demo\Backend1\node_modules\.prisma\client\query_engine-windows.dll.node.tmp24092' -> 'C:\Users\prave\OneDrive\Desktop\new_iitkart\Demo\Backend1\node_modules\.prisma\client\query_engine-windows.dll.node'
+
+

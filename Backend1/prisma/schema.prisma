@@ -64,74 +64,75 @@ enum UserStatus {
 }
 
 model User {
-  id             String        @id @default(cuid())
-  name           String
-  email          String        @unique
-  passwordHash   String
-  role           Role          @default(user)
-  phone          String?
-  address        String?
-  photo          String?
-  kartCoins      Int           @default(0)
-  status         UserStatus    @default(active)
-  isVerified     Boolean       @default(false)
-  otp            String?
-  otpExpiry      DateTime?
-  favorites      String[]      // productIds
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         Role       @default(user)
+  phone        String?
+  address      String?
+  photo        String?
+  kartCoins    Int        @default(0)
+  status       UserStatus @default(active)
+  isVerified   Boolean    @default(false)
+  otp          String?
+  otpExpiry    DateTime?
+  pendingEmail String?
+  favorites    String[] // productIds
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   // Relations
-  vendorProfile  Vendor?
-  ordersAsUser   Order[]       @relation("UserOrders")
-  ordersAsCourier Order[]      @relation("CourierOrders")
-  courierProfile CourierProfile?
-  complaints     Complaint[]
-  reviews        ProductReview[]
-  payments       Payment[]
+  vendorProfile       Vendor?
+  ordersAsUser        Order[]              @relation("UserOrders")
+  ordersAsCourier     Order[]              @relation("CourierOrders")
+  courierProfile      CourierProfile?
+  complaints          Complaint[]
+  reviews             ProductReview[]
+  payments            Payment[]
   passwordResetTokens PasswordResetToken[]
 }
 
 model Vendor {
-  id               String       @id @default(cuid())
-  userId           String       @unique   // linked to User with role=vendor
-  user             User         @relation(fields: [userId], references: [id])  
-  name             String
-  email            String       @unique
-  needsRider       Boolean      @default(false)
+  id                String       @id @default(cuid())
+  userId            String       @unique // linked to User with role=vendor
+  user              User         @relation(fields: [userId], references: [id])
+  name              String
+  email             String       @unique
+  needsRider        Boolean      @default(false)
   riderRequirements String?
-  rating           Float        @default(0)
-  totalOrders      Int          @default(0)
-  totalEarnings    Float        @default(0)
-  status           VendorStatus @default(active)
-  availability     String?
-  location         String?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  rating            Float        @default(0)
+  totalOrders       Int          @default(0)
+  totalEarnings     Float        @default(0)
+  status            VendorStatus @default(active)
+  availability      String?
+  location          String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
-  products         Product[]
-  orders           Order[]
-  courierJobs      CourierJob[]
+  products    Product[]
+  orders      Order[]
+  courierJobs CourierJob[]
 }
 
 model Product {
-  id            String   @id @default(cuid())
-  vendorId      String
-  vendor        Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  name          String
-  category      String
-  price         Float
-  description   String
-  image         String
-  inStock       Boolean  @default(true)
-  isBestseller  Boolean  @default(false)
-  rating        Float?
-  totalReviews  Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(cuid())
+  vendorId     String
+  vendor       Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name         String
+  category     String
+  price        Float
+  description  String
+  image        String
+  inStock      Boolean  @default(true)
+  isBestseller Boolean  @default(false)
+  rating       Float?
+  totalReviews Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  orderItems    OrderItem[]
-  reviews       ProductReview[]
+  orderItems OrderItem[]
+  reviews    ProductReview[]
 }
 
 model ProductReview {
@@ -169,10 +170,10 @@ model Order {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  items           OrderItem[]
-  payment         Payment?
-  complaints      Complaint[]
-  deliveryIssues  DeliveryIssue[]
+  items          OrderItem[]
+  payment        Payment?
+  complaints     Complaint[]
+  deliveryIssues DeliveryIssue[]
 }
 
 model OrderItem {
@@ -182,30 +183,30 @@ model OrderItem {
   productId String
   product   Product @relation(fields: [productId], references: [id])
   quantity  Int
-  price     Float   // price at time of order
+  price     Float // price at time of order
 }
 
 model CourierProfile {
-  id               String   @id @default(cuid())
-  userId           String   @unique
-  user             User     @relation(fields: [userId], references: [id])
-  experience       String?
-  availability     String?
-  lookingForJob    Boolean  @default(false)
-  totalDeliveries  Int      @default(0)
-  totalEarnings    Float    @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  experience      String?
+  availability    String?
+  lookingForJob   Boolean  @default(false)
+  totalDeliveries Int      @default(0)
+  totalEarnings   Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model CourierJob {
-  id          String   @id @default(cuid())
-  vendorId    String
-  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  vendorId     String
+  vendor       Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   requirements String
-  salary      Float
-  isAvailable Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  salary       Float
+  isAvailable  Boolean  @default(true)
+  createdAt    DateTime @default(now())
 }
 
 model Complaint {
@@ -216,8 +217,8 @@ model Complaint {
   order       Order?          @relation(fields: [orderId], references: [id])
   subject     String
   description String
-  type        String?         // 'order' | 'delivery' | 'vendor' | 'general'
-  relatedTo   String?         // vendorId or courierId
+  type        String? // 'order' | 'delivery' | 'vendor' | 'general'
+  relatedTo   String? // vendorId or courierId
   status      ComplaintStatus @default(pending)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -237,21 +238,21 @@ model DeliveryIssue {
 }
 
 model Payment {
-  id            String        @id @default(cuid())
-  orderId       String        @unique
-  order         Order         @relation(fields: [orderId], references: [id])
-  userId        String
-  user          User          @relation(fields: [userId], references: [id])
-  amount        Float
-  currency      String        @default("INR")
-  paymentStatus PaymentStatus @default(pending)
+  id                String        @id @default(cuid())
+  orderId           String        @unique
+  order             Order         @relation(fields: [orderId], references: [id])
+  userId            String
+  user              User          @relation(fields: [userId], references: [id])
+  amount            Float
+  currency          String        @default("INR")
+  paymentStatus     PaymentStatus @default(pending)
   razorpayPaymentId String?
   razorpayOrderId   String?
   razorpaySignature String?
-  method        String?       // 'card' | 'upi' | 'netbanking' | 'wallet' | 'cod'
-  receipt       String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  method            String? // 'card' | 'upi' | 'netbanking' | 'wallet' | 'cod'
+  receipt           String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 }
 
 model PasswordResetToken {
@@ -262,4 +263,17 @@ model PasswordResetToken {
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+model PendingUser {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role
+  phone        String?
+  address      String?
+  otp          String
+  otpExpiry    DateTime
+  createdAt    DateTime @default(now())
 }
