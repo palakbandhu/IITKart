@@ -26,7 +26,7 @@ Follow these steps to get the project running locally on your system.
 
 ```bash
 git clone <repository-url>
-cd Myproject
+cd IITKart
 ```
 
 ### 3. Backend Setup
@@ -103,6 +103,15 @@ npm run dev
 
 ### 4. Frontend Setup
 
+### Step 4.1: Environment Variables (Frontend)
+
+Create a `.env` file inside the `frontend` directory and add the following:
+
+```env
+VITE_API_URL=http://localhost:5001/api
+```
+
+
 Open a new terminal window and navigate to the frontend directory:
 
 ```bash
@@ -120,7 +129,7 @@ npm run dev
 
 ---
 
-## Testing Guide for TAs
+## Testing Guide 
 
 Here is how you can completely test the platform's core features:
 
