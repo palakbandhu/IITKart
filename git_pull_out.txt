@@ -1,0 +1,11 @@
+From https://github.com/virendrakala/Demo
+ * branch            main       -> FETCH_HEAD
+error: Unable to create 'C:/Users/prave/OneDrive/Desktop/new_iitkart/Demo/.git/index.lock': File exists.
+
+Another git process seems to be running in this repository, e.g.
+an editor opened by 'git commit'. Please make sure all processes
+are terminated then try again. If it still fails, a git process
+may have crashed in this repository earlier:
+remove the file manually to continue.
+error: could not write index
+fatal: stash failed

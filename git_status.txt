@@ -1,0 +1,131 @@
+On branch Praveen
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   .gitignore
+	new file:   Backend1/.gitignore
+	new file:   Backend1/debug.js
+	new file:   Backend1/logs/combined 2.log
+	new file:   Backend1/logs/combined 3.log
+	modified:   Backend1/logs/combined.log
+	modified:   Backend1/logs/error.log
+	new file:   Backend1/out.txt
+	modified:   Backend1/prisma/schema.prisma
+	modified:   Backend1/src/controllers/authController.ts
+	modified:   Backend1/src/controllers/vendorController.ts
+	modified:   Backend1/src/routes/authRoutes.ts
+	modified:   Backend1/src/services/notificationService.ts
+	new file:   Backend1/testUsers.ts
+	new file:   Backend1/testVendor.ts
+	new file:   frontend/dist/assets/README.md
+	new file:   frontend/dist/assets/background.svg
+	new file:   frontend/dist/assets/home-background.svg
+	new file:   frontend/dist/assets/iitKart-logo.jpg
+	new file:   frontend/dist/assets/index-B-Dfb3ea.js
+	new file:   frontend/dist/assets/index-BjVrTkt1.css
+	new file:   frontend/dist/assets/logo.svg
+	new file:   frontend/dist/index.html
+	modified:   frontend/index.html
+	modified:   frontend/src/api/axios.ts
+	modified:   frontend/src/app/components/AdminInterface.tsx
+	modified:   frontend/src/app/components/AuthPage.tsx
+	modified:   frontend/src/app/components/CourierInterface.tsx
+	modified:   frontend/src/app/components/ForgotPassword.tsx
+	modified:   frontend/src/app/components/Header.tsx
+	modified:   frontend/src/app/components/VendorInterfaceNew.tsx
+	modified:   frontend/src/app/contexts/AppContext.tsx
+	modified:   frontend/src/styles/fonts.css
+	modified:   frontend/src/styles/tailwind.css
+	new file:   package-lock.json
+
+Changes not staged for commit:
+  (use "git add/rm <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   .gitignore
+	deleted:    Backend1/.gitignore
+	deleted:    Backend1/debug.js
+	deleted:    Backend1/dist/middlewares/authMiddleware.d.ts.map
+	deleted:    Backend1/dist/middlewares/authMiddleware.js
+	deleted:    Backend1/dist/middlewares/authMiddleware.js.map
+	deleted:    Backend1/dist/middlewares/errorMiddleware.d.ts
+	deleted:    Backend1/dist/middlewares/errorMiddleware.d.ts.map
+	deleted:    Backend1/dist/middlewares/errorMiddleware.js
+	deleted:    Backend1/dist/middlewares/errorMiddleware.js.map
+	deleted:    Backend1/dist/middlewares/uploadMiddleware.d.ts
+	deleted:    Backend1/dist/middlewares/uploadMiddleware.d.ts.map
+	deleted:    Backend1/dist/middlewares/uploadMiddleware.js
+	deleted:    Backend1/dist/middlewares/uploadMiddleware.js.map
+	deleted:    Backend1/dist/middlewares/validateRequest.d.ts
+	deleted:    Backend1/dist/middlewares/validateRequest.d.ts.map
+	deleted:    Backend1/dist/middlewares/validateRequest.js
+	deleted:    Backend1/dist/middlewares/validateRequest.js.map
+	deleted:    Backend1/dist/routes/adminRoutes.d.ts
+	deleted:    Backend1/dist/routes/adminRoutes.d.ts.map
+	deleted:    Backend1/dist/routes/adminRoutes.js
+	deleted:    Backend1/dist/routes/adminRoutes.js.map
+	deleted:    Backend1/dist/routes/authRoutes.d.ts
+	deleted:    Backend1/dist/routes/authRoutes.d.ts.map
+	deleted:    Backend1/dist/routes/authRoutes.js
+	deleted:    Backend1/dist/routes/authRoutes.js.map
+	deleted:    Backend1/dist/routes/orderRoutes.d.ts
+	deleted:    Backend1/dist/routes/orderRoutes.d.ts.map
+	deleted:    Backend1/dist/routes/orderRoutes.js
+	deleted:    Backend1/dist/routes/orderRoutes.js.map
+	deleted:    Backend1/dist/routes/paymentRoutes.d.ts
+	deleted:    Backend1/dist/routes/paymentRoutes.d.ts.map
+	deleted:    Backend1/dist/routes/paymentRoutes.js
+	deleted:    Backend1/dist/routes/paymentRoutes.js.map
+	deleted:    Backend1/dist/routes/riderRoutes.d.ts
+	deleted:    Backend1/dist/routes/riderRoutes.d.ts.map
+	deleted:    Backend1/dist/routes/riderRoutes.js
+	deleted:    Backend1/dist/routes/riderRoutes.js.map
+	deleted:    Backend1/dist/routes/userRoutes.d.ts
+	deleted:    Backend1/dist/routes/userRoutes.d.ts.map
+	deleted:    Backend1/dist/routes/userRoutes.js
+	deleted:    Backend1/dist/routes/userRoutes.js.map
+	deleted:    Backend1/dist/routes/vendorRoutes.d.ts
+	deleted:    Backend1/dist/routes/vendorRoutes.d.ts.map
+	deleted:    Backend1/dist/routes/vendorRoutes.js
+	deleted:    Backend1/dist/routes/vendorRoutes.js.map
+	deleted:    Backend1/dist/seedOrders.d.ts
+	deleted:    Backend1/dist/seedOrders.d.ts.map
+	deleted:    Backend1/dist/seedOrders.js
+	deleted:    Backend1/dist/seedOrders.js.map
+	deleted:    Backend1/dist/server.d.ts
+	deleted:    Backend1/dist/server.d.ts.map
+	deleted:    Backend1/dist/server.js
+	deleted:    Backend1/dist/server.js.map
+	deleted:    Backend1/dist/services/authService.d.ts
+	deleted:    Backend1/dist/services/authService.d.ts.map
+	deleted:    Backend1/dist/services/authService.js
+	deleted:    Backend1/logs/combined 2.log
+	deleted:    Backend1/logs/combined 3.log
+	modified:   Backend1/logs/combined.log
+	modified:   Backend1/logs/error.log
+	deleted:    Backend1/out.txt
+	modified:   Backend1/prisma/migrations/migration_lock.toml
+	deleted:    Backend1/testUsers.ts
+	deleted:    Backend1/testVendor.ts
+	deleted:    frontend/dist/assets/README.md
+	deleted:    frontend/dist/assets/background.svg
+	deleted:    frontend/dist/assets/home-background.svg
+	deleted:    frontend/dist/assets/iitKart-logo.jpg
+	deleted:    frontend/dist/assets/index-B-Dfb3ea.js
+	deleted:    frontend/dist/assets/index-BjVrTkt1.css
+	deleted:    frontend/dist/assets/logo.svg
+	deleted:    frontend/dist/index.html
+	modified:   frontend/src/app/contexts/AppContext.tsx
+	deleted:    package-lock.json
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	Backend1/.env
+	Backend1/node_modules/
+	Backend1/prisma/migrations/20260326200231_mig/
+	Backend1/uploads/image-1774555632619-699351723.png
+	Backend1/uploads/image-1774555885546-95011531.jpeg
+	Backend1/uploads/image-1774606881201-818500439.jpeg
+	Backend1/uploads/image-1774606911232-851955005.jpeg
+	frontend/.env
+	frontend/node_modules/
+	git_status.txt
+

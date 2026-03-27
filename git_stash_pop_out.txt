@@ -1,0 +1,87 @@
+Auto-merging .gitignore
+CONFLICT (content): Merge conflict in .gitignore
+Auto-merging Backend1/.gitignore
+CONFLICT (add/add): Merge conflict in Backend1/.gitignore
+Auto-merging Backend1/logs/combined.log
+CONFLICT (content): Merge conflict in Backend1/logs/combined.log
+Auto-merging Backend1/logs/error.log
+CONFLICT (content): Merge conflict in Backend1/logs/error.log
+Auto-merging Backend1/src/controllers/authController.ts
+On branch Praveen
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	deleted:    Backend1/dist/middlewares/authMiddleware.d.ts.map
+	deleted:    Backend1/dist/middlewares/authMiddleware.js
+	deleted:    Backend1/dist/middlewares/authMiddleware.js.map
+	deleted:    Backend1/dist/middlewares/errorMiddleware.d.ts
+	deleted:    Backend1/dist/middlewares/errorMiddleware.d.ts.map
+	deleted:    Backend1/dist/middlewares/errorMiddleware.js
+	deleted:    Backend1/dist/middlewares/errorMiddleware.js.map
+	deleted:    Backend1/dist/middlewares/uploadMiddleware.d.ts
+	deleted:    Backend1/dist/middlewares/uploadMiddleware.d.ts.map
+	deleted:    Backend1/dist/middlewares/uploadMiddleware.js
+	deleted:    Backend1/dist/middlewares/uploadMiddleware.js.map
+	deleted:    Backend1/dist/middlewares/validateRequest.d.ts
+	deleted:    Backend1/dist/middlewares/validateRequest.d.ts.map
+	deleted:    Backend1/dist/middlewares/validateRequest.js
+	deleted:    Backend1/dist/middlewares/validateRequest.js.map
+	deleted:    Backend1/dist/routes/adminRoutes.d.ts
+	deleted:    Backend1/dist/routes/adminRoutes.d.ts.map
+	deleted:    Backend1/dist/routes/adminRoutes.js
+	deleted:    Backend1/dist/routes/adminRoutes.js.map
+	deleted:    Backend1/dist/routes/authRoutes.d.ts
+	deleted:    Backend1/dist/routes/authRoutes.d.ts.map
+	deleted:    Backend1/dist/routes/authRoutes.js
+	deleted:    Backend1/dist/routes/authRoutes.js.map
+	deleted:    Backend1/dist/routes/orderRoutes.d.ts
+	deleted:    Backend1/dist/routes/orderRoutes.d.ts.map
+	deleted:    Backend1/dist/routes/orderRoutes.js
+	deleted:    Backend1/dist/routes/orderRoutes.js.map
+	deleted:    Backend1/dist/routes/paymentRoutes.d.ts
+	deleted:    Backend1/dist/routes/paymentRoutes.d.ts.map
+	deleted:    Backend1/dist/routes/paymentRoutes.js
+	deleted:    Backend1/dist/routes/paymentRoutes.js.map
+	deleted:    Backend1/dist/routes/riderRoutes.d.ts
+	deleted:    Backend1/dist/routes/riderRoutes.d.ts.map
+	deleted:    Backend1/dist/routes/riderRoutes.js
+	deleted:    Backend1/dist/routes/riderRoutes.js.map
+	deleted:    Backend1/dist/routes/userRoutes.d.ts
+	deleted:    Backend1/dist/routes/userRoutes.d.ts.map
+	deleted:    Backend1/dist/routes/userRoutes.js
+	deleted:    Backend1/dist/routes/userRoutes.js.map
+	deleted:    Backend1/dist/routes/vendorRoutes.d.ts
+	deleted:    Backend1/dist/routes/vendorRoutes.d.ts.map
+	deleted:    Backend1/dist/routes/vendorRoutes.js
+	deleted:    Backend1/dist/routes/vendorRoutes.js.map
+	deleted:    Backend1/dist/seedOrders.d.ts
+	deleted:    Backend1/dist/seedOrders.d.ts.map
+	deleted:    Backend1/dist/seedOrders.js
+	deleted:    Backend1/dist/seedOrders.js.map
+	deleted:    Backend1/dist/server.d.ts
+	deleted:    Backend1/dist/server.d.ts.map
+	deleted:    Backend1/dist/server.js
+	deleted:    Backend1/dist/server.js.map
+	deleted:    Backend1/dist/services/authService.d.ts
+	deleted:    Backend1/dist/services/authService.d.ts.map
+	deleted:    Backend1/dist/services/authService.js
+
+Unmerged paths:
+  (use "git restore --staged <file>..." to unstage)
+  (use "git add <file>..." to mark resolution)
+	both modified:   .gitignore
+	both added:      Backend1/.gitignore
+	both modified:   Backend1/logs/combined.log
+	both modified:   Backend1/logs/error.log
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	Backend1/prisma/migrations/20260326200231_mig/
+	git_pull3.txt
+	git_pull_out.txt
+	git_pull_out2.txt
+	git_stash.txt
+	git_stash_pop_out.txt
+	git_status.txt
+	git_status3.txt
+
+The stash entry is kept in case you need it again.
