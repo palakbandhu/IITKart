@@ -730,9 +730,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return { status: 'otp_sent', userId: response.data.data.userId };
       }
       return null;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration failed:", error);
-      return null;
+      return { error: error.response?.data?.message || 'Registration failed' };
     }
   };
 

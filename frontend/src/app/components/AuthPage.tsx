@@ -120,6 +120,8 @@ export function AuthPage() {
       toast.success('Registration successful. Please verify your email.');
       setAwaitingOtp(true);
       setTempUserId(response.userId);
+    } else if (response && response.error) {
+      toast.error(response.error);
     } else {
       toast.error('Registration failed. Try a different email.');
     }
