@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { useApp, Product } from '@/app/contexts/AppContext';
 import { Header } from '@/app/components/Header';
@@ -28,6 +29,9 @@ function MetricCard({ label, value, icon: Icon, colorClass }: { label: string; v
   );
 }
 
+const phoneSchema = z.string().length(10, "Phone number must be 10 digits").regex(/^\d+$/, "Phone number must be numeric");
+const priceSchema = z.number().gt(0, "Price must be positive");
+
 const NAV_ITEMS: SidebarItem[] = [
   { id: 'orders',    label: 'Orders',    icon: ClipboardList },
   { id: 'inventory', label: 'Inventory', icon: Package       },
@@ -37,7 +41,7 @@ const NAV_ITEMS: SidebarItem[] = [
 ];
 
 // Moved outside the main component to prevent input focus loss on re-renders
-function ProductFormFields({ productForm, setProductForm, onSubmit, label }: { productForm: any, setProductForm: any, onSubmit: () => void, label: string }) {
+function ProductFormFields({ productForm, setProductForm, onSubmit, label, priceError }: { productForm: any, setProductForm: any, onSubmit: () => void, label: string, priceError?: string }) {
   return (
     <div className="space-y-4 pt-2">
       {[
@@ -49,7 +53,8 @@ function ProductFormFields({ productForm, setProductForm, onSubmit, label }: { p
           <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{l}</Label>
           <Input type={t} placeholder={ph} value={productForm[f]}
             onChange={e => setProductForm({ ...productForm, [f]: t === 'number' ? Number(e.target.value) : e.target.value })}
-            className="h-10 bg-[#F0F4FF] dark:bg-[#0A1628] border-blue-100 dark:border-blue-900/30 rounded-xl" />
+            className={`h-10 bg-[#F0F4FF] dark:bg-[#0A1628] border-blue-100 dark:border-blue-900/30 rounded-xl ${f === 'price' && priceError ? 'border-red-500' : ''}`} />
+          {f === 'price' && priceError && <p className="text-[10px] text-red-500 mt-1 font-semibold">{priceError}</p>}
         </div>
       ))}
       <div className="space-y-1">
@@ -122,9 +127,20 @@ export function VendorInterface() {
   const [productForm, setProductForm]               = useState({ name: '', category: 'Food', price: 0, description: '', image: '', stock: 10 });
   const [settingsData, setSettingsData]             = useState({ name: vendor?.name || '', email: currentUser?.email || '', phone: currentUser?.phone || '', address: vendor?.location || '' });
   const [isSavingSettings, setIsSavingSettings]     = useState(false);
+  const [phoneError, setPhoneError]                 = useState<string | null>(null);
+  const [priceError, setPriceError]                 = useState<string | null>(null);
 
   const handleSaveSettings = async () => {
     if (!vendor || !currentUser) return;
+
+    // Validate phone number
+    const validation = phoneSchema.safeParse(settingsData.phone);
+    if (!validation.success) {
+      setPhoneError(validation.error.issues[0].message);
+      return;
+    }
+    setPhoneError(null);
+
     setIsSavingSettings(true);
     try {
       await updateVendor(vendor.id, {
@@ -148,7 +164,15 @@ export function VendorInterface() {
   if (!currentUser || (currentUser.role !== 'VENDOR' && currentUser.role !== 'vendor')) return null;
 
   const handleAddProduct = () => {
-    if (!productForm.name.trim() || !productForm.price) { toast.error('Name and price are required'); return; }
+    if (!productForm.name.trim()) { toast.error('Name is required'); return; }
+
+    const validation = priceSchema.safeParse(productForm.price);
+    if (!validation.success) {
+      setPriceError(validation.error.issues[0].message);
+      return;
+    }
+    setPriceError(null);
+
     addProduct({ id: `P${Date.now()}`, vendorId, vendorName: vendor?.name || 'My Shop', name: productForm.name, category: productForm.category, price: productForm.price, description: productForm.description, image: productForm.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400', inStock: productForm.stock > 0 });
     toast.success('Product added!');
     setShowProductDialog(false);
@@ -157,14 +181,24 @@ export function VendorInterface() {
 
   const handleUpdateProduct = () => {
     if (!editingProduct) return;
+
+    const validation = priceSchema.safeParse(productForm.price);
+    if (!validation.success) {
+      setPriceError(validation.error.issues[0].message);
+      return;
+    }
+    setPriceError(null);
+
     updateProduct(editingProduct.id, { name: productForm.name, category: productForm.category, price: productForm.price, description: productForm.description, image: productForm.image || editingProduct.image, inStock: productForm.stock > 0 });
     toast.success('Product updated!');
     setEditingProduct(null);
+    setPriceError(null);
   };
 
   const openEdit = (p: Product) => {
     setProductForm({ name: p.name, category: p.category, price: p.price, description: p.description, image: p.image, stock: p.inStock ? 10 : 0 });
     setEditingProduct(p);
+    setPriceError(null);
   };
 
   return (
@@ -389,9 +423,18 @@ export function VendorInterface() {
                       <div key={f.field} className="space-y-1">
                         <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5"><Icon className="w-3.5 h-3.5" />{f.label}</Label>
                         <Input type={f.type} placeholder={f.ph} value={(settingsData as any)[f.field]}
-                          onChange={e => setSettingsData({ ...settingsData, [f.field]: e.target.value })}
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (f.field === 'phone') {
+                              if (val && !/^\d+$/.test(val)) return;
+                              if (val.length > 10) return;
+                            }
+                            setSettingsData({ ...settingsData, [f.field]: val });
+                            if (f.field === 'phone') setPhoneError(null);
+                          }}
                           disabled={f.field === 'email'}
-                          className="h-11 bg-[#F0F4FF] dark:bg-[#0A1628] border-blue-100 dark:border-blue-900/30 rounded-xl disabled:opacity-60 disabled:cursor-not-allowed" />
+                          className={`h-11 bg-[#F0F4FF] dark:bg-[#0A1628] border-blue-100 dark:border-blue-900/30 rounded-xl disabled:opacity-60 disabled:cursor-not-allowed ${f.field === 'phone' && phoneError ? 'border-red-500' : ''}`} />
+                        {f.field === 'phone' && phoneError && <p className="text-[10px] text-red-500 mt-1 font-semibold">{phoneError}</p>}
                       </div>
                     );
                   })}
@@ -415,16 +458,16 @@ export function VendorInterface() {
             <DialogTitle className="text-[#0F172A] dark:text-white" style={{ fontFamily: 'Syne, sans-serif' }}>Add New Product</DialogTitle>
             <DialogDescription className="text-slate-500">Fill in the details for your new product</DialogDescription>
           </DialogHeader>
-          <ProductFormFields productForm={productForm} setProductForm={setProductForm} onSubmit={handleAddProduct} label="Add Product" />
+          <ProductFormFields productForm={productForm} setProductForm={setProductForm} onSubmit={handleAddProduct} label="Add Product" priceError={priceError || undefined} />
         </DialogContent>
       </Dialog>
-      <Dialog open={!!editingProduct} onOpenChange={open => { if (!open) setEditingProduct(null); }}>
+      <Dialog open={!!editingProduct} onOpenChange={open => { if (!open) { setEditingProduct(null); setPriceError(null); } }}>
         <DialogContent className="bg-white dark:bg-[#0F1E3A] border-blue-100 dark:border-blue-900/30 rounded-2xl max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-[#0F172A] dark:text-white" style={{ fontFamily: 'Syne, sans-serif' }}>Edit Product</DialogTitle>
             <DialogDescription className="text-slate-500">Update your product details</DialogDescription>
           </DialogHeader>
-          <ProductFormFields productForm={productForm} setProductForm={setProductForm} onSubmit={handleUpdateProduct} label="Save Changes" />
+          <ProductFormFields productForm={productForm} setProductForm={setProductForm} onSubmit={handleUpdateProduct} label="Save Changes" priceError={priceError || undefined} />
         </DialogContent>
       </Dialog>
     </div>
