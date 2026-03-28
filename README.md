@@ -72,8 +72,13 @@ NODE_ENV="development"
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/iitkart?schema=public"
 
 # Authentication
-JWT_SECRET="your_jwt_secret_key_here"
+JWT_SECRET="your-super-secret-jwt-key-at-least-64-chars"
 JWT_EXPIRES_IN="7d"
+REFRESH_TOKEN_SECRET="your-super-secret-refresh-token-key-at-least-32-chars"
+REFRESH_TOKEN_EXPIRES_IN="30d"
+
+#Server
+FRONTEND_URL="http://localhost:5173"
 
 # Email / OTP Verification (Nodemailer)
 SMTP_HOST="smtp.gmail.com"
