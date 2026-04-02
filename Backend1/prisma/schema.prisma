@@ -1,0 +1,262 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  user
+  vendor
+  courier
+  admin
+}
+
+enum OrderStatus {
+  pending
+  accepted
+  picked
+  delivered
+  cancelled
+}
+
+enum PaymentStatus {
+  pending
+  processing
+  success
+  failed
+  refunded
+}
+
+enum ComplaintStatus {
+  pending
+  resolved
+  closed
+}
+
+enum DeliveryIssueType {
+  customer_unavailable
+  address_incorrect
+  item_damaged
+  accident
+  vehicle_breakdown
+  other
+}
+
+enum DeliveryIssueStatus {
+  pending
+  resolved
+  escalated
+}
+
+enum VendorStatus {
+  active
+  suspended
+}
+
+enum UserStatus {
+  active
+  banned
+}
+
+model User {
+  id             String        @id @default(cuid())
+  name           String
+  email          String        @unique
+  passwordHash   String
+  role           Role          @default(user)
+  phone          String?
+  address        String?
+  photo          String?
+  kartCoins      Int           @default(0)
+  status         UserStatus    @default(active)
+  favorites      String[]      // productIds
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  vendorProfile  Vendor?
+  ordersAsUser   Order[]       @relation("UserOrders")
+  ordersAsCourier Order[]      @relation("CourierOrders")
+  courierProfile CourierProfile?
+  complaints     Complaint[]
+  reviews        ProductReview[]
+  payments       Payment[]
+  passwordResetTokens PasswordResetToken[]
+}
+
+model Vendor {
+  id               String       @id @default(cuid())
+  userId           String       @unique   // linked to User with role=vendor
+  user             User         @relation(fields: [userId], references: [id])  
+  name             String
+  email            String       @unique
+  needsRider       Boolean      @default(false)
+  riderRequirements String?
+  rating           Float        @default(0)
+  totalOrders      Int          @default(0)
+  totalEarnings    Float        @default(0)
+  status           VendorStatus @default(active)
+  availability     String?
+  location         String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  products         Product[]
+  orders           Order[]
+  courierJobs      CourierJob[]
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  vendorId      String
+  vendor        Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name          String
+  category      String
+  price         Float
+  description   String
+  image         String
+  inStock       Boolean  @default(true)
+  isBestseller  Boolean  @default(false)
+  rating        Float?
+  totalReviews  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orderItems    OrderItem[]
+  reviews       ProductReview[]
+}
+
+model ProductReview {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  rating    Int
+  comment   String
+  orderId   String?
+  createdAt DateTime @default(now())
+}
+
+model Order {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation("UserOrders", fields: [userId], references: [id])
+  vendorId        String
+  vendor          Vendor        @relation(fields: [vendorId], references: [id])
+  courierId       String?
+  courier         User?         @relation("CourierOrders", fields: [courierId], references: [id])
+  total           Float
+  status          OrderStatus   @default(pending)
+  kartCoinsEarned Int           @default(0)
+  deliveryAddress String
+  paymentStatus   PaymentStatus @default(pending)
+  paymentMethod   String        @default("UPI")
+  rating          Int?
+  feedback        String?
+  courierRating   Int?
+  courierFeedback String?
+  vendorRating    Int?
+  vendorFeedback  String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  items           OrderItem[]
+  payment         Payment?
+  complaints      Complaint[]
+  deliveryIssues  DeliveryIssue[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float   // price at time of order
+}
+
+model CourierProfile {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id])
+  experience       String?
+  availability     String?
+  lookingForJob    Boolean  @default(false)
+  totalDeliveries  Int      @default(0)
+  totalEarnings    Float    @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model CourierJob {
+  id          String   @id @default(cuid())
+  vendorId    String
+  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  requirements String
+  salary      Float
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model Complaint {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id])
+  orderId     String?
+  order       Order?          @relation(fields: [orderId], references: [id])
+  subject     String
+  description String
+  type        String?         // 'order' | 'delivery' | 'vendor' | 'general'
+  relatedTo   String?         // vendorId or courierId
+  status      ComplaintStatus @default(pending)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model DeliveryIssue {
+  id              String              @id @default(cuid())
+  orderId         String
+  order           Order               @relation(fields: [orderId], references: [id])
+  courierId       String
+  issueType       DeliveryIssueType
+  description     String
+  status          DeliveryIssueStatus @default(pending)
+  resolutionNotes String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  orderId       String        @unique
+  order         Order         @relation(fields: [orderId], references: [id])
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  amount        Float
+  currency      String        @default("INR")
+  paymentStatus PaymentStatus @default(pending)
+  razorpayPaymentId String?
+  razorpayOrderId   String?
+  razorpaySignature String?
+  method        String?       // 'card' | 'upi' | 'netbanking' | 'wallet' | 'cod'
+  receipt       String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}

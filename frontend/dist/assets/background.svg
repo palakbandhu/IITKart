@@ -1,0 +1,14 @@
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Beige/Cream Background Pattern -->
+  <rect width="1920" height="1080" fill="#F5F1E8"/>
+  
+  <!-- Subtle pattern -->
+  <circle cx="200" cy="200" r="150" fill="#E8DCC8" opacity="0.3"/>
+  <circle cx="1700" cy="300" r="200" fill="#D4C4A8" opacity="0.2"/>
+  <circle cx="400" cy="800" r="180" fill="#E8DCC8" opacity="0.25"/>
+  <circle cx="1500" cy="850" r="220" fill="#D4C4A8" opacity="0.2"/>
+  
+  <!-- Abstract shapes -->
+  <path d="M 0 540 Q 480 400 960 540 T 1920 540 L 1920 1080 L 0 1080 Z" fill="#8B6F47" opacity="0.05"/>
+  <path d="M 0 0 Q 480 140 960 0 T 1920 0 L 1920 200 L 0 200 Z" fill="#8B6F47" opacity="0.05"/>
+</svg>

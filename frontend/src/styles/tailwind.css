@@ -1,0 +1,33 @@
+@import 'tailwindcss' source(none);
+@source '../**/*.{js,ts,jsx,tsx}';
+
+@import 'tw-animate-css';
+
+/* Toast notification custom styles for better visibility */
+[data-sonner-toast] [data-title] {
+  color: #030213 !important;
+  opacity: 1 !important;
+  font-weight: 600 !important;
+}
+
+[data-sonner-toast] [data-description] {
+  color: #030213 !important;
+  opacity: 1 !important;
+  font-weight: 500 !important;
+}
+
+[data-sonner-toast][data-type="success"] [data-description] {
+  color: #166534 !important;
+}
+
+[data-sonner-toast][data-type="error"] [data-description] {
+  color: #991b1b !important;
+}
+
+[data-sonner-toast][data-type="info"] [data-description] {
+  color: #1e40af !important;
+}
+
+[data-sonner-toast][data-type="warning"] [data-description] {
+  color: #854d0e !important;
+}

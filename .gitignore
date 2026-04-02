@@ -1,0 +1,8 @@
+node_modules
+.DS_Store
+.vscode
+.env
+
+/generated/prisma
+Backend1/logsBackend1/uploads/*
+!Backend1/uploads/.gitkeep
