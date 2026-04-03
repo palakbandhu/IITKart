@@ -23,6 +23,19 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
       if (existing) return next(new AppError('Email already in use', 400));
     }
 
+    // Validate phone
+    if (phone) {
+      const cleanPhone = String(phone).trim();
+      if (!/^[0-9]{10}$/.test(cleanPhone)) {
+        return next(new AppError('Phone number must contain exactly 10 digits.', 400));
+      }
+      
+      if (cleanPhone !== req.user.phone) {
+        const existingPhone = await prisma.user.findFirst({ where: { phone: cleanPhone } });
+        if (existingPhone) return next(new AppError('This phone number is already registered.', 400));
+      }
+    }
+
     if (req.file) {
       photo = `/uploads/${req.file.filename}`;
     }

@@ -18,6 +18,7 @@ import {
   Home,
 } from 'lucide-react';
 import { ForgotPassword } from './ForgotPassword';
+import { isValidPhone } from '@/app/utils/validation';
 
 type AppRole = 'CUSTOMER' | 'VENDOR' | 'RIDER' | 'ADMIN';
 
@@ -437,10 +438,20 @@ export function AuthPage() {
                       type="tel"
                       placeholder="10-digit number"
                       value={registerData.phone}
-                      onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
-                      className="pl-10 h-11 bg-white dark:bg-[#0F1E3A] border-blue-100 dark:border-blue-900/40 focus:border-[#1E3A8A] rounded-xl"
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        setRegisterData({ ...registerData, phone: val });
+                      }}
+                      className={`pl-10 h-11 bg-white dark:bg-[#0F1E3A] border-blue-100 dark:border-blue-900/40 focus:border-[#1E3A8A] rounded-xl ${
+                        registerData.phone && !isValidPhone(registerData.phone) ? 'border-red-500 focus:border-red-500' : ''
+                      }`}
                     />
                   </div>
+                  {registerData.phone && !isValidPhone(registerData.phone) && (
+                    <p className="text-[10px] text-red-500 mt-1 pl-1 font-semibold animate-in fade-in slide-in-from-top-1 duration-200">
+                      Phone number must be exactly 10 digits
+                    </p>
+                  )}
                 </div>
 
                 {registerData.role === 'CUSTOMER' && (
@@ -505,7 +516,7 @@ export function AuthPage() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !isValidPhone(registerData.phone)}
                 className="w-full flex items-center justify-center gap-2 bg-[#1E3A8A] hover:bg-[#2B4FBA] disabled:opacity-60 text-white font-bold h-12 rounded-xl transition-all shadow-lg shadow-blue-900/20 hover:shadow-xl active:scale-95"
               >
                 {loading ? (

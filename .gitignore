@@ -10,3 +10,5 @@ Backend1/uploads/*
 !Backend1/uploads/.gitkeep
 frontend/dist/
 frontend/.vite/
+Backend1/.env
+frontend/.env

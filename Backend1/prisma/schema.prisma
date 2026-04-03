@@ -69,7 +69,7 @@ model User {
   email        String     @unique
   passwordHash String
   role         Role       @default(user)
-  phone        String?
+  phone        String?    @unique
   address      String?
   photo        String?
   kartCoins    Int        @default(0)
@@ -273,7 +273,7 @@ model PendingUser {
   email        String   @unique
   passwordHash String
   role         Role
-  phone        String?
+  phone        String?   @unique
   address      String?
   otp          String
   otpExpiry    DateTime

@@ -14,6 +14,7 @@ import {
   Truck, AlertCircle, Store, Zap, RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { isValidPhone } from '@/app/utils/validation';
 
 function MetricCard({ label, value, icon: Icon, colorClass }: { label: string; value: string | number; icon: any; colorClass: string }) {
   return (
@@ -382,15 +383,33 @@ export function CourierInterface() {
                     return (
                       <div key={f.field} className="space-y-1">
                         <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5"><Icon className="w-3.5 h-3.5" />{f.label}</Label>
-                        <input type={f.type} value={(settingsData as any)[f.field]}
-                          onChange={(e) => setSettingsData({ ...settingsData, [f.field]: e.target.value })}
+                        <input 
+                          type={f.type} 
+                          value={(settingsData as any)[f.field]}
+                          onChange={(e) => {
+                            let val = e.target.value;
+                            if (f.field === 'phone') {
+                              val = val.replace(/\D/g, '').slice(0, 10);
+                            }
+                            setSettingsData({ ...settingsData, [f.field]: val });
+                          }}
                           disabled={f.field === 'email'}
-                          className="w-full h-11 bg-[#F0F4FF] dark:bg-[#0A1628] border border-blue-100 dark:border-blue-900/30 rounded-xl px-3.5 text-sm focus:outline-none focus:border-[#1E3A8A] disabled:opacity-60 disabled:cursor-not-allowed" />
+                          className={`w-full h-11 bg-[#F0F4FF] dark:bg-[#0A1628] border rounded-xl px-3.5 text-sm focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed ${
+                            f.field === 'phone' && settingsData.phone && !isValidPhone(settingsData.phone) 
+                              ? 'border-red-500 focus:border-red-500' 
+                              : 'border-blue-100 dark:border-blue-900/30 focus:border-[#1E3A8A]'
+                          }`} 
+                        />
+                        {f.field === 'phone' && settingsData.phone && !isValidPhone(settingsData.phone) && (
+                          <p className="text-[10px] text-red-500 mt-1 pl-1 font-semibold">
+                            Phone number must be exactly 10 digits
+                          </p>
+                        )}
                       </div>
                     );
                   })}
                   <div className="flex gap-3 pt-2">
-                    <button onClick={handleSaveSettings} disabled={isSavingSettings} className="flex-1 h-11 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white font-bold rounded-xl text-sm transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
+                    <button onClick={handleSaveSettings} disabled={isSavingSettings || !isValidPhone(settingsData.phone)} className="flex-1 h-11 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white font-bold rounded-xl text-sm transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
                       {isSavingSettings ? 'Saving...' : 'Save'}
                     </button>
                     <button onClick={() => { logout(); navigate('/auth'); }} className="flex-1 h-11 border-2 border-red-200 dark:border-red-900/30 text-red-500 font-bold rounded-xl text-sm hover:bg-red-50 transition-colors">Logout</button>

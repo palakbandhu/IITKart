@@ -25,8 +25,13 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       return next(new AppError('Forbidden: System operates with exactly ONE master admin. Registration blocked.', 403));
     }
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) return next(new AppError('Email already registered', 400));
+    const existingEmail = await prisma.user.findUnique({ where: { email } });
+    if (existingEmail) return next(new AppError('Email already registered', 400));
+
+    if (phone) {
+      const existingPhone = await prisma.user.findFirst({ where: { phone: String(phone).trim() } });
+      if (existingPhone) return next(new AppError('This phone number is already registered.', 400));
+    }
 
     const passwordHash = await authService.hashPassword(password);
     const otp = authService.generateOTP();

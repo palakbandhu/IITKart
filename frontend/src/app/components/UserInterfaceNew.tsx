@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PaymentModal } from '@/app/components/PaymentModal';
+import { isValidPhone } from '@/app/utils/validation';
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
@@ -659,51 +660,73 @@ export function UserInterface() {
                     return (
                       <div key={f.field} className="space-y-1">
                         <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5"><Icon className="w-3.5 h-3.5" />{f.label}</Label>
-                        <Input type={f.type} placeholder={f.placeholder} value={(settingsData as any)[f.field]}
-                          onChange={e => setSettingsData({ ...settingsData, [f.field]: e.target.value })}
-                          className="h-11 bg-[#F0F4FF] dark:bg-[#0A1628] border-blue-100 dark:border-blue-900/30 rounded-xl focus:border-[#1E3A8A]" />
+                        <Input 
+                          type={f.type} 
+                          placeholder={f.placeholder} 
+                          value={(settingsData as any)[f.field]}
+                          onChange={e => {
+                            let val = e.target.value;
+                            if (f.field === 'phone') {
+                              val = val.replace(/\D/g, '').slice(0, 10);
+                            }
+                            setSettingsData({ ...settingsData, [f.field]: val });
+                          }}
+                          className={`h-11 bg-[#F0F4FF] dark:bg-[#0A1628] border-blue-100 dark:border-blue-900/30 rounded-xl focus:border-[#1E3A8A] ${
+                            f.field === 'phone' && settingsData.phone && !isValidPhone(settingsData.phone) ? 'border-red-500 focus:border-red-500' : ''
+                          }`} 
+                        />
+                        {f.field === 'phone' && settingsData.phone && !isValidPhone(settingsData.phone) && (
+                          <p className="text-[10px] text-red-500 mt-1 pl-1 font-semibold">
+                            Phone number must be exactly 10 digits
+                          </p>
+                        )}
                       </div>
                     );
                   })}
                   <div className="flex gap-3 pt-2">
-                    <button onClick={async () => {
-                      try {
-                        let photoRef = settingsData.photo;
-                        // Handle FormData if file was selected
-                        if ((settingsData as any).photoFile) {
-                          const formData = new FormData();
-                          formData.append('photo', (settingsData as any).photoFile);
-                          formData.append('name', settingsData.name);
-                          formData.append('email', settingsData.email);
-                          formData.append('phone', settingsData.phone);
-                          formData.append('address', settingsData.address);
-                          // We bypass context updateUser purely for the file upload, then sync state
-                          const res = await (window as any).apiPatch?.('/users/profile', formData, {
-                             headers: { 'Content-Type': 'multipart/form-data' }
-                          });
-                          if (res?.data?.data) {
-                            photoRef = res.data.data.photo;
-                            toast.success('Settings & Photo saved!');
-                          }
+                      <button onClick={async () => {
+                        if (!isValidPhone(settingsData.phone)) {
+                          toast.error('Please enter a valid 10-digit phone number');
+                          return;
                         }
+                        try {
+                          let photoRef = settingsData.photo;
+                          // Handle FormData if file was selected
+                          if ((settingsData as any).photoFile) {
+                            const formData = new FormData();
+                            formData.append('photo', (settingsData as any).photoFile);
+                            formData.append('name', settingsData.name);
+                            formData.append('email', settingsData.email);
+                            formData.append('phone', settingsData.phone);
+                            formData.append('address', settingsData.address);
+                            // We bypass context updateUser purely for the file upload, then sync state
+                            const res = await (window as any).apiPatch?.('/users/profile', formData, {
+                               headers: { 'Content-Type': 'multipart/form-data' }
+                            });
+                            if (res?.data?.data) {
+                              photoRef = res.data.data.photo;
+                              toast.success('Settings & Photo saved!');
+                            }
+                          }
 
-                        // Update all user data
-                        updateUser(currentUser.id, {
-                          name: settingsData.name,
-                          email: settingsData.email,
-                          phone: settingsData.phone,
-                          address: settingsData.address,
-                          photo: photoRef
-                        });
+                          // Update all user data
+                          updateUser(currentUser.id, {
+                            name: settingsData.name,
+                            email: settingsData.email,
+                            phone: settingsData.phone,
+                            address: settingsData.address,
+                            photo: photoRef
+                          });
 
-                        // Clear photoFile after save
-                        setSettingsData(prev => ({ ...prev, photoFile: undefined } as any));
-                        toast.success('Settings saved!');
-                      } catch (e) {
-                        toast.error('Failed to save settings');
-                      }
-                    }}
-                      className="flex-1 h-11 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white font-bold rounded-xl transition-all shadow-md active:scale-95 text-sm">Save Changes</button>
+                          // Clear photoFile after save
+                          setSettingsData(prev => ({ ...prev, photoFile: undefined } as any));
+                          toast.success('Settings saved!');
+                        } catch (e) {
+                          toast.error('Failed to save settings');
+                        }
+                      }}
+                        disabled={!isValidPhone(settingsData.phone)}
+                        className="flex-1 h-11 bg-[#1E3A8A] hover:bg-[#2B4FBA] disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-md active:scale-95 text-sm">Save Changes</button>
                     <button onClick={() => { logout(); navigate('/auth'); }}
                       className="flex-1 h-11 border-2 border-red-200 dark:border-red-900/30 text-red-500 font-bold rounded-xl hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors text-sm">Logout</button>
                   </div>
