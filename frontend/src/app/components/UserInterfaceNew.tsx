@@ -368,6 +368,13 @@ export function UserInterface() {
                             <div className="p-3">
                               <h4 className="font-bold text-[#0F172A] dark:text-white text-xs leading-tight mb-1 line-clamp-1">{product.name}</h4>
                               <p className="text-slate-400 text-[10px] mb-2 line-clamp-1">{product.description}</p>
+                              {product.rating ? (
+                                <div className="flex items-center gap-1 mb-1.5">
+                                  <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{product.rating.toFixed(1)}</span>
+                                  <span className="text-[10px] text-slate-400">({product.totalReviews})</span>
+                                </div>
+                              ) : null}
                               <div className="flex items-center justify-between">
                                 <span className="font-extrabold text-[#1E3A8A] dark:text-blue-300 text-sm">₹{product.price}</span>
                                 <button onClick={() => { addToCart(product.id); toast.success('Added to cart!'); }}

@@ -329,7 +329,14 @@ export function VendorInterface() {
                         </div>
                         <div className="p-3">
                           <h4 className="font-bold text-[#0F172A] dark:text-white text-xs line-clamp-1 mb-0.5">{p.name}</h4>
-                          <p className="text-slate-400 text-[10px] mb-2">{p.category}</p>
+                          <p className="text-slate-400 text-[10px] mb-1">{p.category}</p>
+                          {p.rating ? (
+                            <div className="flex items-center gap-1 mb-1.5">
+                              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{p.rating.toFixed(1)}</span>
+                              <span className="text-[10px] text-slate-400">({p.totalReviews})</span>
+                            </div>
+                          ) : <div className="h-4 mb-1.5" />}
                           <p className="font-extrabold text-[#1E3A8A] dark:text-blue-300 text-sm mb-3">₹{p.price}</p>
                           <div className="flex gap-1.5">
                             <button onClick={() => openEdit(p)} className="flex-1 h-7 bg-blue-50 dark:bg-blue-900/20 text-[#1E3A8A] dark:text-blue-400 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 hover:bg-blue-100 transition-colors">
