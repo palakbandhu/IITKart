@@ -129,6 +129,7 @@ model Product {
   isBestseller Boolean  @default(false)
   rating       Float?
   totalReviews Int      @default(0)
+  stockQuantity Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

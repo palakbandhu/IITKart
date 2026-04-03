@@ -88,8 +88,11 @@ export const addProduct = async (req: any, res: Response, next: NextFunction) =>
       return next(new AppError('Invalid category', 400));
     }
 
+    const stockQuantity = req.body.stock !== undefined ? Number(req.body.stock) : (req.body.stockQuantity !== undefined ? Number(req.body.stockQuantity) : 0);
+    inStock = stockQuantity > 0;
+
     const product = await prisma.product.create({
-      data: { name, category, price, description, image: image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400', inStock, vendorId: vendor!.id }
+      data: { name, category, price, description, image: image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400', inStock, stockQuantity, vendorId: vendor!.id }
     });
     res.status(201).json({ success: true, data: product });
   } catch (error) { next(error); }
@@ -112,6 +115,15 @@ export const updateProduct = async (req: any, res: Response, next: NextFunction)
     
     if (req.file) {
       updateData.image = `/uploads/${req.file.filename}`;
+    }
+
+    if (updateData.stock !== undefined) {
+      updateData.stockQuantity = Number(updateData.stock);
+      updateData.inStock = updateData.stockQuantity > 0;
+      delete updateData.stock;
+    } else if (updateData.stockQuantity !== undefined) {
+      updateData.stockQuantity = Number(updateData.stockQuantity);
+      updateData.inStock = updateData.stockQuantity > 0;
     }
 
     const updated = await prisma.product.update({

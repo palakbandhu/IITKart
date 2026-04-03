@@ -11,6 +11,7 @@ export interface Product {
   description: string;
   image: string;
   inStock: boolean;
+  stockQuantity: number;
   isBestseller?: boolean;
   isFavorite?: boolean;
   rating?: number;
@@ -227,38 +228,38 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 // Extended Mock Data
 const MOCK_PRODUCTS: Product[] = [
   // Amul Parlour
-  { id: '1', vendorId: 'v1', vendorName: 'Amul Parlour', name: 'Veg Sandwich', category: 'Food', price: 50, description: 'Fresh veg sandwich with cheese', image: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=400', inStock: true },
-  { id: '2', vendorId: 'v1', vendorName: 'Amul Parlour', name: 'Cold Coffee', category: 'Beverage', price: 40, description: 'Chilled cold coffee', image: 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400', inStock: true },
-  { id: '12', vendorId: 'v1', vendorName: 'Amul Parlour', name: 'Ice Cream', category: 'Food', price: 60, description: 'Amul ice cream 100ml', image: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400', inStock: true },
-  { id: '13', vendorId: 'v1', vendorName: 'Amul Parlour', name: 'Cheese Burger', category: 'Food', price: 80, description: 'Delicious cheese burger', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400', inStock: true },
-  { id: '14', vendorId: 'v1', vendorName: 'Amul Parlour', name: 'Milkshake', category: 'Beverage', price: 70, description: 'Thick milkshake', image: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=400', inStock: true },
+  { id: '1', vendorId: 'v1', vendorName: 'Amul Parlour', name: 'Veg Sandwich', category: 'Food', price: 50, description: 'Fresh veg sandwich with cheese', image: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=400', inStock: true, stockQuantity: 100 },
+  { id: '2', vendorId: 'v1', vendorName: 'Amul Parlour', name: 'Cold Coffee', category: 'Beverage', price: 40, description: 'Chilled cold coffee', image: 'https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400', inStock: true, stockQuantity: 100 },
+  { id: '12', vendorId: 'v1', vendorName: 'Amul Parlour', name: 'Ice Cream', category: 'Food', price: 60, description: 'Amul ice cream 100ml', image: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400', inStock: true, stockQuantity: 100 },
+  { id: '13', vendorId: 'v1', vendorName: 'Amul Parlour', name: 'Cheese Burger', category: 'Food', price: 80, description: 'Delicious cheese burger', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400', inStock: true, stockQuantity: 100 },
+  { id: '14', vendorId: 'v1', vendorName: 'Amul Parlour', name: 'Milkshake', category: 'Beverage', price: 70, description: 'Thick milkshake', image: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=400', inStock: true, stockQuantity: 100 },
   
   // Photocopy Shop
-  { id: '3', vendorId: 'v2', vendorName: 'Photocopy Shop', name: 'Color Printout', category: 'Printing', price: 10, description: 'Per page color printing', image: 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?w=400', inStock: true },
-  { id: '4', vendorId: 'v2', vendorName: 'Photocopy Shop', name: 'B&W Printout', category: 'Printing', price: 2, description: 'Per page black and white printing', image: 'https://images.unsplash.com/photo-1585012977345-39cef1fc80e0?w=400', inStock: true },
-  { id: '15', vendorId: 'v2', vendorName: 'Photocopy Shop', name: 'Spiral Binding', category: 'Printing', price: 30, description: 'Spiral binding service', image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400', inStock: true },
+  { id: '3', vendorId: 'v2', vendorName: 'Photocopy Shop', name: 'Color Printout', category: 'Printing', price: 10, description: 'Per page color printing', image: 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?w=400', inStock: true, stockQuantity: 100 },
+  { id: '4', vendorId: 'v2', vendorName: 'Photocopy Shop', name: 'B&W Printout', category: 'Printing', price: 2, description: 'Per page black and white printing', image: 'https://images.unsplash.com/photo-1585012977345-39cef1fc80e0?w=400', inStock: true, stockQuantity: 100 },
+  { id: '15', vendorId: 'v2', vendorName: 'Photocopy Shop', name: 'Spiral Binding', category: 'Printing', price: 30, description: 'Spiral binding service', image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400', inStock: true, stockQuantity: 100 },
   
   // Wash & Iron
-  { id: '5', vendorId: 'v3', vendorName: 'Wash & Iron', name: 'Laundry Service', category: 'Laundry', price: 100, description: 'Wash and iron service per kg', image: 'https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?w=400', inStock: true },
-  { id: '16', vendorId: 'v3', vendorName: 'Wash & Iron', name: 'Dry Cleaning', category: 'Laundry', price: 150, description: 'Professional dry cleaning', image: 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=400', inStock: true },
+  { id: '5', vendorId: 'v3', vendorName: 'Wash & Iron', name: 'Laundry Service', category: 'Laundry', price: 100, description: 'Wash and iron service per kg', image: 'https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?w=400', inStock: true, stockQuantity: 100 },
+  { id: '16', vendorId: 'v3', vendorName: 'Wash & Iron', name: 'Dry Cleaning', category: 'Laundry', price: 150, description: 'Professional dry cleaning', image: 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=400', inStock: true, stockQuantity: 100 },
   
   // Chhota Bazaar
-  { id: '6', vendorId: 'v4', vendorName: 'Chhota Bazaar', name: 'Notebook A4', category: 'Stationery', price: 40, description: 'A4 size notebook 200 pages', image: 'https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=400', inStock: true },
-  { id: '11', vendorId: 'v4', vendorName: 'Chhota Bazaar', name: 'Pen Set', category: 'Stationery', price: 50, description: 'Blue pen set of 5', image: 'https://images.unsplash.com/photo-1586932219544-9d33a58cc6c2?w=400', inStock: true },
-  { id: '17', vendorId: 'v4', vendorName: 'Chhota Bazaar', name: 'Calculator', category: 'Stationery', price: 200, description: 'Scientific calculator', image: 'https://images.unsplash.com/photo-1611224885990-ab7363d1f2a3?w=400', inStock: true },
-  { id: '18', vendorId: 'v4', vendorName: 'Chhota Bazaar', name: 'File Folder', category: 'Stationery', price: 25, description: 'Plastic file folder', image: 'https://images.unsplash.com/photo-1586105449897-20b5efeb3233?w=400', inStock: true },
+  { id: '6', vendorId: 'v4', vendorName: 'Chhota Bazaar', name: 'Notebook A4', category: 'Stationery', price: 40, description: 'A4 size notebook 200 pages', image: 'https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=400', inStock: true, stockQuantity: 100 },
+  { id: '11', vendorId: 'v4', vendorName: 'Chhota Bazaar', name: 'Pen Set', category: 'Stationery', price: 50, description: 'Blue pen set of 5', image: 'https://images.unsplash.com/photo-1586932219544-9d33a58cc6c2?w=400', inStock: true, stockQuantity: 100 },
+  { id: '17', vendorId: 'v4', vendorName: 'Chhota Bazaar', name: 'Calculator', category: 'Stationery', price: 200, description: 'Scientific calculator', image: 'https://images.unsplash.com/photo-1611224885990-ab7363d1f2a3?w=400', inStock: true, stockQuantity: 100 },
+  { id: '18', vendorId: 'v4', vendorName: 'Chhota Bazaar', name: 'File Folder', category: 'Stationery', price: 25, description: 'Plastic file folder', image: 'https://images.unsplash.com/photo-1586105449897-20b5efeb3233?w=400', inStock: true, stockQuantity: 100 },
   
   // Nescafe
-  { id: '7', vendorId: 'v5', vendorName: 'Nescafe', name: 'Cappuccino', category: 'Beverage', price: 30, description: 'Hot cappuccino', image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400', inStock: true },
-  { id: '8', vendorId: 'v5', vendorName: 'Nescafe', name: 'Chocolate Pastry', category: 'Food', price: 35, description: 'Fresh chocolate pastry', image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400', inStock: true },
-  { id: '19', vendorId: 'v5', vendorName: 'Nescafe', name: 'Espresso', category: 'Beverage', price: 35, description: 'Strong espresso shot', image: 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=400', inStock: true },
-  { id: '20', vendorId: 'v5', vendorName: 'Nescafe', name: 'Croissant', category: 'Food', price: 45, description: 'Buttery croissant', image: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400', inStock: true },
+  { id: '7', vendorId: 'v5', vendorName: 'Nescafe', name: 'Cappuccino', category: 'Beverage', price: 30, description: 'Hot cappuccino', image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400', inStock: true, stockQuantity: 100 },
+  { id: '8', vendorId: 'v5', vendorName: 'Nescafe', name: 'Chocolate Pastry', category: 'Food', price: 35, description: 'Fresh chocolate pastry', image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400', inStock: true, stockQuantity: 100 },
+  { id: '19', vendorId: 'v5', vendorName: 'Nescafe', name: 'Espresso', category: 'Beverage', price: 35, description: 'Strong espresso shot', image: 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=400', inStock: true, stockQuantity: 100 },
+  { id: '20', vendorId: 'v5', vendorName: 'Nescafe', name: 'Croissant', category: 'Food', price: 45, description: 'Buttery croissant', image: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400', inStock: true, stockQuantity: 100 },
   
   // KC Shop
-  { id: '9', vendorId: 'v6', vendorName: 'KC Shop', name: 'Maggi', category: 'Food', price: 25, description: 'Hot maggi noodles', image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400', inStock: true },
-  { id: '10', vendorId: 'v6', vendorName: 'KC Shop', name: 'Samosa', category: 'Food', price: 15, description: 'Crispy samosa', image: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=400', inStock: true },
-  { id: '21', vendorId: 'v6', vendorName: 'KC Shop', name: 'Vada Pav', category: 'Food', price: 20, description: 'Mumbai style vada pav', image: 'https://images.unsplash.com/photo-1626074353765-517a681e40be?w=400', inStock: true },
-  { id: '22', vendorId: 'v6', vendorName: 'KC Shop', name: 'Chai', category: 'Beverage', price: 10, description: 'Hot masala chai', image: 'https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=400', inStock: true },
+  { id: '9', vendorId: 'v6', vendorName: 'KC Shop', name: 'Maggi', category: 'Food', price: 25, description: 'Hot maggi noodles', image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400', inStock: true, stockQuantity: 100 },
+  { id: '10', vendorId: 'v6', vendorName: 'KC Shop', name: 'Samosa', category: 'Food', price: 15, description: 'Crispy samosa', image: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=400', inStock: true, stockQuantity: 100 },
+  { id: '21', vendorId: 'v6', vendorName: 'KC Shop', name: 'Vada Pav', category: 'Food', price: 20, description: 'Mumbai style vada pav', image: 'https://images.unsplash.com/photo-1626074353765-517a681e40be?w=400', inStock: true, stockQuantity: 100 },
+  { id: '22', vendorId: 'v6', vendorName: 'KC Shop', name: 'Chai', category: 'Beverage', price: 10, description: 'Hot masala chai', image: 'https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=400', inStock: true, stockQuantity: 100 },
 ];
 
 const MOCK_VENDORS: Vendor[] = [
@@ -465,7 +466,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       formData.append('category', product.category);
       formData.append('price', String(product.price));
       formData.append('description', product.description);
-      formData.append('inStock', String(product.inStock));
+      formData.append('inStock', String(product.stockQuantity > 0));
+      formData.append('stockQuantity', String(product.stockQuantity || product.stock || 0));
       if (product.image && typeof product.image !== 'object') {
         formData.append('image', product.image);
       } else if (product.image instanceof File) {
@@ -505,7 +507,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         payload = new FormData();
         Object.entries(updates).forEach(([key, value]) => {
           if (value !== undefined) {
-            payload.append(key, value instanceof File ? value : String(value));
+            if (key === 'stock' || key === 'stockQuantity') {
+              payload.append('stockQuantity', String(value));
+              payload.append('inStock', String(Number(value) > 0));
+            } else {
+              payload.append(key, value instanceof File ? value : String(value));
+            }
           }
         });
       }

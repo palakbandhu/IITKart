@@ -25,12 +25,20 @@ export const placeOrder = async (req: AuthRequest, res: Response, next: NextFunc
     if (validatedVendorId !== vendorId) throw new AppError('Vendor mismatch', 400);
 
     const productIds = items.map((i: any) => i.productId);
-    const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
+    const products: any[] = await prisma.product.findMany({ where: { id: { in: productIds } } });
+
+    // Pre-Order stock validation
+    for (const item of items) {
+      const product = (products as any[]).find((p: any) => p.id === item.productId);
+      if (!product) throw new AppError(`Product not found: ${item.productId}`, 404);
+      if (Number(product.stockQuantity) < Number(item.quantity)) {
+        throw new AppError(`Insufficient stock available for ${product.name}`, 400);
+      }
+    }
 
     let total = 0;
     const orderItemsData = items.map((item: any) => {
-      const product = products.find(p => p.id === item.productId);
-      if (!product) throw new AppError(`Product not found: ${item.productId}`, 404);
+      const product = products.find(p => p.id === item.productId)!;
       total += product.price * item.quantity;
       return {
         productId: item.productId,
@@ -42,7 +50,27 @@ export const placeOrder = async (req: AuthRequest, res: Response, next: NextFunc
     const kartCoinsEarned = orderService.calculateKartCoins(total);
     const kartCoinsUsed = useKartCoins ? KART_COIN_THRESHOLD : 0;
 
-    const order = await prisma.$transaction(async (tx) => {
+    const order = await prisma.$transaction(async (tx: any) => {
+      // Atomic Stock Decrement
+      for (const item of items) {
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: { stockQuantity: true, name: true }
+        });
+        
+        if (!product || product.stockQuantity < item.quantity) {
+          throw new AppError(`Stock sold out during checkout for ${product?.name || 'product'}`, 400);
+        }
+
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            stockQuantity: { decrement: item.quantity },
+            inStock: product.stockQuantity - item.quantity > 0
+          }
+        });
+      }
+
       const newOrder = await tx.order.create({
         data: {
           userId: req.user.id,
@@ -113,9 +141,30 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response, next: N
       return res.status(200).json({ success: true, data: existingOrder, message: 'Order status already updated' });
     }
 
-    const order = await prisma.order.update({
-      where: { id: req.params.id },
-      data: { status }
+    const order = await prisma.$transaction(async (tx: any) => {
+      const updatedOrder = await tx.order.update({
+        where: { id: req.params.id },
+        data: { status }
+      });
+
+      // Stock Reversion if order is cancelled
+      if (status === 'cancelled' && existingOrder.status !== 'cancelled') {
+        const orderItems = await tx.orderItem.findMany({
+          where: { orderId: req.params.id }
+        });
+
+        for (const item of orderItems) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: {
+              stockQuantity: { increment: item.quantity },
+              inStock: true
+            }
+          });
+        }
+      }
+
+      return updatedOrder;
     });
 
     if (status === 'delivered') {

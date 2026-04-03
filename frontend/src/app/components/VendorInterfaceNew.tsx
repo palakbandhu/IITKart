@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp, Product } from '@/app/contexts/AppContext';
 import { Header } from '@/app/components/Header';
@@ -92,7 +92,7 @@ export function VendorInterface() {
   const navigate = useNavigate();
   const { products, addProduct, removeProduct, updateProduct, orders, refreshOrders, currentUser, authLoading, logout, setCurrentUser, vendors, courierProfiles, users, updateOrderStatus, updateVendor, updateUser } = useApp();
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (authLoading) return;
     if (!currentUser || (currentUser.role !== 'VENDOR' && currentUser.role !== 'vendor')) navigate('/auth');
   }, [currentUser, authLoading, navigate]);
@@ -151,7 +151,7 @@ export function VendorInterface() {
   const handleAddProduct = async () => {
     if (!productForm.name.trim() || !productForm.price) { toast.error('Name and price are required'); return; }
     try {
-      await addProduct({ id: `P${Date.now()}`, vendorId, vendorName: vendor?.name || 'My Shop', name: productForm.name, category: productForm.category, price: productForm.price, description: productForm.description, image: productForm.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400', inStock: productForm.stock > 0 });
+      await addProduct({ id: `P${Date.now()}`, vendorId, vendorName: vendor?.name || 'My Shop', name: productForm.name, category: productForm.category, price: productForm.price, description: productForm.description, image: productForm.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400', inStock: productForm.stock > 0, stockQuantity: productForm.stock });
       toast.success('Product added!');
       setShowProductDialog(false);
       setProductForm({ name: '', category: 'Food', price: 0, description: '', image: '', stock: 10 });
@@ -163,7 +163,7 @@ export function VendorInterface() {
   const handleUpdateProduct = async () => {
     if (!editingProduct) return;
     try {
-      await updateProduct(editingProduct.id, { name: productForm.name, category: productForm.category, price: productForm.price, description: productForm.description, image: productForm.image || editingProduct.image, inStock: productForm.stock > 0 });
+      await updateProduct(editingProduct.id, { name: productForm.name, category: productForm.category, price: productForm.price, description: productForm.description, image: productForm.image || editingProduct.image, stockQuantity: productForm.stock });
       toast.success('Product updated!');
       setEditingProduct(null);
     } catch (err) {
@@ -172,7 +172,7 @@ export function VendorInterface() {
   };
 
   const openEdit = (p: Product) => {
-    setProductForm({ name: p.name, category: p.category, price: p.price, description: p.description, image: p.image, stock: p.inStock ? 10 : 0 });
+    setProductForm({ name: p.name, category: p.category, price: p.price, description: p.description, image: p.image, stock: p.stockQuantity });
     setEditingProduct(p);
   };
 
@@ -323,8 +323,8 @@ export function VendorInterface() {
                       <div key={p.id} className="bg-white dark:bg-[#0F1E3A] rounded-2xl border border-blue-100 dark:border-blue-900/30 shadow-sm overflow-hidden group hover:-translate-y-0.5 hover:shadow-md transition-all">
                         <div className="relative">
                           <img src={getImageUrl(p.image)} alt={p.name} className="w-full h-28 object-cover" />
-                          <span className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${p.inStock ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
-                            {p.inStock ? 'In Stock' : 'Out'}
+                          <span className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${p.stockQuantity > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
+                            {p.stockQuantity > 0 ? `Stock: ${p.stockQuantity}` : 'Out'}
                           </span>
                         </div>
                         <div className="p-3">
