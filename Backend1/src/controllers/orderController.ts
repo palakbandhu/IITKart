@@ -212,7 +212,35 @@ export const rateOrder = async (req: AuthRequest, res: Response, next: NextFunct
     const data: any = {};
     if (type === 'vendor') { data.vendorRating = rating; data.vendorFeedback = feedback; }
     else if (type === 'courier') { data.courierRating = rating; data.courierFeedback = feedback; }
-    else if (type === 'product') { data.rating = rating; data.feedback = feedback; }
+    else if (type === 'product') { 
+      data.rating = rating; 
+      data.feedback = feedback; 
+      
+      const existingOrder = await prisma.order.findUnique({
+        where: { id: req.params.id },
+        include: { items: true }
+      });
+
+      if (existingOrder && !existingOrder.rating) {
+        for (const item of existingOrder.items) {
+          const product = await prisma.product.findUnique({ where: { id: item.productId } });
+          if (product) {
+            const currentTotal = product.totalReviews || 0;
+            const currentRating = product.rating || 0;
+            const newTotal = currentTotal + 1;
+            const newRating = ((currentRating * currentTotal) + rating) / newTotal;
+
+            await prisma.product.update({
+              where: { id: product.id },
+              data: {
+                rating: newRating,
+                totalReviews: newTotal
+              }
+            });
+          }
+        }
+      }
+    }
 
     const order = await prisma.order.update({
       where: { id: req.params.id },
