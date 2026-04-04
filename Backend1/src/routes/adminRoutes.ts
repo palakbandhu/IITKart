@@ -18,6 +18,9 @@ router.patch('/users/:id/ban', adminController.banUser);
 router.get('/vendors', adminController.listVendors);
 router.patch('/vendors/:id/status', adminController.toggleVendorStatus);
 
+router.get('/riders', adminController.listRiders);
+router.patch('/riders/:id/status', adminController.toggleRiderStatus);
+
 // Order & Issue Overrides
 router.get('/orders', adminController.getOrders);
 router.patch('/orders/:id/status', adminController.forceUpdateOrderStatus);
@@ -29,5 +32,6 @@ router.patch('/complaints/:id/resolve', adminController.resolveComplaint);
 router.get('/export/users', adminController.exportUsersCSV);
 router.get('/export/vendors', adminController.exportVendorsCSV);
 router.get('/export/orders', adminController.exportOrdersCSV);
+router.get('/export/riders', adminController.exportRidersCSV);
 
 export default router;

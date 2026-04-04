@@ -15,6 +15,7 @@ export const getPlatformStats = async (req: Request, res: Response, next: NextFu
     
     const activeUsers = await prisma.user.count({ where: { status: 'active', role: 'user' } });
     const activeVendors = await prisma.vendor.count({ where: { status: 'active' } });
+    const activeRiders = await prisma.user.count({ where: { status: 'active', role: 'courier' } });
     const pendingComplaints = await prisma.complaint.count({ where: { status: 'pending' } });
     
     res.status(200).json({
@@ -24,6 +25,7 @@ export const getPlatformStats = async (req: Request, res: Response, next: NextFu
         totalRevenue: revenueAggr._sum.total || 0,
         activeUsers,
         activeVendors,
+        activeRiders,
         pendingComplaints
       }
     });
@@ -120,6 +122,59 @@ export const toggleVendorStatus = async (req: Request, res: Response, next: Next
     });
     
     res.status(200).json({ success: true, message: `Vendor status changed to ${newStatus}`, data: updated });
+  } catch (error) { next(error); }
+};
+
+export const listRiders = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const search = req.query.search as string || '';
+    
+    const where = {
+      role: 'courier' as const,
+      ...(search ? {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' as const } },
+          { email: { contains: search, mode: 'insensitive' as const } }
+        ]
+      } : {})
+    };
+    
+    const [riders, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        select: { 
+          id: true, name: true, email: true, phone: true, status: true, createdAt: true,
+          courierProfile: {
+            select: { totalDeliveries: true, totalEarnings: true, availability: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.user.count({ where })
+    ]);
+    
+    res.status(200).json({ success: true, data: riders, meta: { total, page, limit } });
+  } catch (error) { next(error); }
+};
+
+export const toggleRiderStatus = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const rider = await prisma.user.findUnique({ where: { id, role: 'courier' } });
+    if (!rider) return next(new AppError('Rider not found', 404));
+    
+    const newStatus = rider.status === 'banned' ? 'active' : 'banned';
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { status: newStatus },
+      select: { id: true, name: true, email: true, status: true }
+    });
+    
+    res.status(200).json({ success: true, message: `Rider status changed to ${newStatus}`, data: updated });
   } catch (error) { next(error); }
 };
 
@@ -247,6 +302,36 @@ export const exportOrdersCSV = async (req: Request, res: Response, next: NextFun
     
     res.header('Content-Type', 'text/csv');
     res.attachment('iitkart-orders-export.csv');
+    return res.status(200).send(csv);
+  } catch (error) { next(error); }
+};
+
+export const exportRidersCSV = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const riders = await prisma.user.findMany({
+      where: { role: 'courier' },
+      select: { 
+        id: true, name: true, email: true, phone: true, status: true, createdAt: true,
+        courierProfile: { select: { totalDeliveries: true, totalEarnings: true } }
+      }
+    });
+    
+    const formattedRiders = riders.map((r: any) => ({
+      id: r.id,
+      name: r.name,
+      email: r.email,
+      phone: r.phone || '',
+      status: r.status,
+      totalDeliveries: r.courierProfile?.totalDeliveries || 0,
+      totalEarnings: r.courierProfile?.totalEarnings || 0,
+      createdAt: r.createdAt
+    }));
+    
+    const fields = ['id', 'name', 'email', 'phone', 'status', 'totalDeliveries', 'totalEarnings', 'createdAt'];
+    const csv = parse(formattedRiders, { fields });
+    
+    res.header('Content-Type', 'text/csv');
+    res.attachment('iitkart-riders-export.csv');
     return res.status(200).send(csv);
   } catch (error) { next(error); }
 };

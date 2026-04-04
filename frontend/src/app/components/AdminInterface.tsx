@@ -35,6 +35,7 @@ const NAV_ITEMS: SidebarItem[] = [
   { id: 'orders',     label: 'Orders',     icon: ShoppingCart },
   { id: 'users',      label: 'Users',      icon: Users        },
   { id: 'vendors',    label: 'Vendors',    icon: Store        },
+  { id: 'riders',     label: 'Riders',     icon: Truck        },
   { id: 'complaints', label: 'Complaints', icon: MessageSquare},
   { id: 'reports',    label: 'Reports',    icon: FileText     },
 ];
@@ -45,10 +46,12 @@ export function AdminInterface() {
   const [activeTab, setActiveTab]     = useState('dashboard');
   const [searchUser, setSearchUser]   = useState('');
   const [searchVendor, setSearchVendor] = useState('');
+  const [searchRider, setSearchRider] = useState('');
 
   const [stats, setStats] = useState<any>(null);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [adminVendors, setAdminVendors] = useState<any[]>([]);
+  const [adminRiders, setAdminRiders] = useState<any[]>([]);
   const [adminOrders, setAdminOrders] = useState<any[]>([]);
   const [adminComplaints, setAdminComplaints] = useState<any[]>([]);
 
@@ -62,15 +65,42 @@ export function AdminInterface() {
       api.get('/admin/stats').then(res => setStats(res.data.data)).catch(console.error);
       api.get('/admin/users?limit=100').then(res => setAdminUsers(res.data.data)).catch(console.error);
       api.get('/admin/vendors?limit=100').then(res => setAdminVendors(res.data.data)).catch(console.error);
+      api.get('/admin/riders?limit=100').then(res => setAdminRiders(res.data.data)).catch(console.error);
       api.get('/admin/orders?limit=100').then(res => setAdminOrders(res.data.data)).catch(console.error);
       api.get('/admin/complaints?limit=100').then(res => setAdminComplaints(res.data.data)).catch(console.error);
     }
   }, [currentUser]);
 
   const weeklyData = useMemo(() => {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return days.map((day, i) => ({ day, orders: 10 + i * 3 + (i % 2 ? 5 : 0), revenue: 1000 + i * 400 }));
-  }, []);
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const today = new Date();
+    
+    // Initialize the last 7 days to 0
+    const last7Days = Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() - (6 - i));
+      return { 
+        dateStr: d.toDateString(), 
+        day: days[d.getDay()], 
+        orders: 0, 
+        revenue: 0 
+      };
+    });
+
+    // Populate with real order data
+    if (adminOrders && adminOrders.length > 0) {
+      adminOrders.forEach(order => {
+        const orderDate = new Date(order.createdAt || order.date);
+        const match = last7Days.find(d => d.dateStr === orderDate.toDateString());
+        if (match) {
+          match.orders += 1;
+          match.revenue += (order.total || 0);
+        }
+      });
+    }
+
+    return last7Days.map(d => ({ day: d.day, orders: d.orders, revenue: d.revenue }));
+  }, [adminOrders]);
 
   const statusData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -88,10 +118,11 @@ export function AdminInterface() {
     commission: stats.totalRevenue * 0.15,
     activeUsers: stats.activeUsers,
     activeVendors: stats.activeVendors,
+    activeRiders: stats.activeRiders || 0,
     pendingComplaints: stats.pendingComplaints,
     successRate: stats.totalOrders > 0 ? ((adminOrders.filter(o => o.status === 'delivered').length / stats.totalOrders) * 100).toFixed(1) : 0,
   } : {
-    total: 0, today: 0, gmv: 0, commission: 0, activeUsers: 0, activeVendors: 0, pendingComplaints: 0, successRate: 0
+    total: 0, today: 0, gmv: 0, commission: 0, activeUsers: 0, activeVendors: 0, activeRiders: 0, pendingComplaints: 0, successRate: 0
   };
 
   const navItems = NAV_ITEMS.map(item => ({
@@ -101,6 +132,7 @@ export function AdminInterface() {
 
   const filteredUsers   = adminUsers.filter(u => u.name?.toLowerCase().includes(searchUser.toLowerCase()) || u.email?.toLowerCase().includes(searchUser.toLowerCase()));
   const filteredVendors = adminVendors.filter(v => v.name?.toLowerCase().includes(searchVendor.toLowerCase()));
+  const filteredRiders  = adminRiders.filter(r => r.name?.toLowerCase().includes(searchRider.toLowerCase()) || r.email?.toLowerCase().includes(searchRider.toLowerCase()));
 
   const exportCSV = async (type: string, filename: string) => {
     try {
@@ -124,6 +156,14 @@ export function AdminInterface() {
       setAdminUsers(adminUsers.map(u => u.id === id ? { ...u, status: current === 'banned' ? 'active' : 'banned' } : u));
       toast.success(`User ${current === 'banned' ? 'unbanned' : 'banned'}!`);
     } catch (e) { toast.error('Failed to change user status'); }
+  };
+
+  const handleToggleRider = async (id: string, current: string) => {
+    try {
+      await api.patch(`/admin/riders/${id}/status`);
+      setAdminRiders(adminRiders.map(r => r.id === id ? { ...r, status: current === 'banned' ? 'active' : 'banned' } : r));
+      toast.success(`Rider ${current === 'banned' ? 'unbanned' : 'banned'}!`);
+    } catch (e) { toast.error('Failed to change rider status'); }
   };
 
   const handleToggleVendor = async (id: string, current: string) => {
@@ -160,12 +200,14 @@ export function AdminInterface() {
 
             {/* Metrics */}
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
-              <div className="col-span-2"><MetricCard label="Total Orders" value={metrics.total} icon={ShoppingCart} colorClass="bg-blue-100 dark:bg-blue-900/30 text-[#1E3A8A] dark:text-blue-400" trend={`+${metrics.today} today`} /></div>
-              <div className="col-span-2"><MetricCard label="Platform GMV"   value={`₹${metrics.gmv.toFixed(0)}`}        icon={DollarSign}  colorClass="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" /></div>
+              <div className="col-span-2 mt-4 sm:mt-0"><MetricCard label="Total Orders" value={metrics.total} icon={ShoppingCart} colorClass="bg-blue-100 dark:bg-blue-900/30 text-[#1E3A8A] dark:text-blue-400" trend={`+${metrics.today} today`} /></div>
+              <div className="col-span-2 mt-4 sm:mt-0"><MetricCard label="Platform GMV"   value={`₹${metrics.gmv.toFixed(0)}`}        icon={DollarSign}  colorClass="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" /></div>
               <MetricCard label="Commission"    value={`₹${metrics.commission.toFixed(0)}`}   icon={TrendingUp}  colorClass="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400" />
               <MetricCard label="Active Users"  value={metrics.activeUsers}                    icon={Users}       colorClass="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400" />
               <MetricCard label="Vendors"       value={metrics.activeVendors}                  icon={Store}       colorClass="bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400" />
+              <MetricCard label="Riders"        value={metrics.activeRiders}                   icon={Truck}       colorClass="bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400" />
               <MetricCard label="Success Rate"  value={`${metrics.successRate}%`}              icon={CheckCircle} colorClass="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" />
+              <MetricCard label="Complaints"    value={metrics.pendingComplaints}              icon={MessageSquare} colorClass="bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400" />
               <MetricCard label="Complaints"    value={metrics.pendingComplaints}              icon={MessageSquare} colorClass="bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400" />
             </div>
 
@@ -378,6 +420,65 @@ export function AdminInterface() {
               </div>
             )}
 
+            {/* ── RIDERS ── */}
+            {activeTab === 'riders' && (
+              <div>
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                  <div>
+                    <h1 className="text-2xl font-extrabold text-[#0F172A] dark:text-white mb-0.5" style={{ fontFamily: 'Syne, sans-serif' }}>Riders (Couriers)</h1>
+                    <p className="text-slate-400 text-sm">{adminRiders.length} registered riders</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                      <Input value={searchRider} onChange={e => setSearchRider(e.target.value)} placeholder="Search riders…"
+                        className="pl-9 h-9 text-sm bg-white dark:bg-[#0F1E3A] border-blue-100 dark:border-blue-900/30 rounded-xl w-48" />
+                    </div>
+                    <button onClick={() => exportCSV('riders', 'riders.csv')}
+                      className="flex items-center gap-2 border border-blue-100 dark:border-blue-900/30 text-slate-600 dark:text-slate-300 text-xs font-bold px-3 py-2 rounded-xl hover:bg-blue-50 transition-colors">
+                      <Download className="w-3.5 h-3.5" /> Export
+                    </button>
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-[#0F1E3A] rounded-2xl border border-blue-100 dark:border-blue-900/30 shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-blue-50 dark:border-blue-900/20 bg-[#F0F4FF] dark:bg-[#0A1628]">
+                          {['Name', 'Email', 'Deliveries', 'Earnings', 'Status', 'Action'].map(h => (
+                            <th key={h} className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredRiders.map(rider => (
+                          <tr key={rider.id} className="border-b border-blue-50 dark:border-blue-900/10 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors">
+                            <td className="px-4 py-3 font-semibold text-[#0F172A] dark:text-white text-sm">{rider.name}</td>
+                            <td className="px-4 py-3 text-slate-400 text-xs">{rider.email}</td>
+                            <td className="px-4 py-3 text-sm text-[#0F172A] dark:text-white font-mono">{rider.courierProfile?.totalDeliveries || 0}</td>
+                            <td className="px-4 py-3 font-bold text-emerald-600 text-sm">₹{rider.courierProfile?.totalEarnings?.toFixed(0) || 0}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${rider.status === 'banned' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                {rider.status === 'banned' ? 'Banned' : 'Active'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <button
+                                onClick={() => handleToggleRider(rider.id, rider.status)}
+                                className={`text-[10px] font-bold hover:underline ${rider.status === 'banned' ? 'text-emerald-600' : 'text-red-500'}`}
+                              >
+                                {rider.status === 'banned' ? 'Unban' : 'Ban'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* ── COMPLAINTS ── */}
             {activeTab === 'complaints' && (
               <div>
@@ -422,6 +523,7 @@ export function AdminInterface() {
                   { label: 'Orders Report',   desc: 'All orders with status and payment details', type: 'orders',   file: 'orders-report.csv'   },
                   { label: 'Users Report',    desc: 'All registered users with roles',            type: 'users',    file: 'users-report.csv'    },
                   { label: 'Vendors Report',  desc: 'Vendor data including earnings and ratings', type: 'vendors',  file: 'vendors-report.csv'  },
+                  { label: 'Riders Report',   desc: 'Rider data including deliveries and income', type: 'riders',   file: 'riders-report.csv'   },
                 ].map(r => (
                   <div key={r.file} className="bg-white dark:bg-[#0F1E3A] rounded-2xl border border-blue-100 dark:border-blue-900/30 p-5 shadow-sm flex items-center justify-between gap-4">
                     <div>
