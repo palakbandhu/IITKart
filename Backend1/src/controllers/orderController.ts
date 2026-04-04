@@ -252,6 +252,22 @@ export const rateOrder = async (req: AuthRequest, res: Response, next: NextFunct
       where: { id: req.params.id },
       data
     });
+
+    // Recalculate Vendor Rating
+    if (type === 'vendor') {
+      const aggregates = await prisma.order.aggregate({
+        where: { vendorId: order.vendorId, vendorRating: { not: null } },
+        _avg: { vendorRating: true }
+      });
+      
+      if (aggregates._avg.vendorRating !== null) {
+        await prisma.vendor.update({
+          where: { id: order.vendorId },
+          data: { rating: aggregates._avg.vendorRating }
+        });
+      }
+    }
+
     res.status(200).json({ success: true, data: order });
   } catch (error) { next(error); }
 };

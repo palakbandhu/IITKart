@@ -220,7 +220,7 @@ export function UserInterface() {
   const generateReceipt = (order: any) => {
     const vendor = vendors.find(v => v.id === order.vendorId);
     const total  = order.total + 30;
-    return `\n╔══════════════════════════════════╗\n║        ORDER RECEIPT            ║\n║           IITKart               ║\n╠══════════════════════════════════╣\n║ Order ID : ${order.id}\n║ Date     : ${new Date(order.createdAt || order.date).toLocaleString('en-IN')}\n║ Vendor   : ${vendor?.name || 'Unknown'}\n║\n║ Item Total : ₹${order.total.toFixed(2)}\n║ Delivery   : ₹30.00\n║ ────────────────────────────────\n║ TOTAL      : ₹${total.toFixed(2)}\n║\n║ Payment : ${order.paymentMethod || 'UPI'} (${order.paymentStatus === 'completed' ? 'PAID ✓' : 'PENDING'})\n║ Coins   : +${order.kartCoinsEarned}\n║ Address : ${order.deliveryAddress}\n╚══════════════════════════════════╝`;
+    return `\n╔══════════════════════════════════╗\n║        ORDER RECEIPT            ║\n║           IITKart               ║\n╠══════════════════════════════════╣\n║ Order ID : ${order.id}\n║ Date     : ${new Date(order.createdAt || order.date).toLocaleString('en-IN')}\n║ Vendor   : ${vendor?.name || 'Unknown'}\n║\n║ Item Total : ₹${order.total.toFixed(2)}\n║ Delivery   : ₹30.00\n║ ────────────────────────────────\n║ TOTAL      : ₹${total.toFixed(2)}\n║\n║ Payment : ${order.paymentMethod || 'UPI'} (${order.paymentStatus === 'success' ? 'PAID ✓' : 'PENDING'})\n║ Coins   : +${order.kartCoinsEarned}\n║ Address : ${order.deliveryAddress}\n╚══════════════════════════════════╝`;
   };
 
   const downloadReceipt = (order: any) => {
@@ -536,8 +536,8 @@ export function UserInterface() {
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-bold text-[#0F172A] dark:text-white font-mono text-sm">#{order.id}</span>
                             <StatusBadge status={order.status} />
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${order.paymentStatus === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                              {order.paymentStatus === 'completed' ? 'Paid' : 'Pending'}
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${order.paymentStatus === 'success' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                              {order.paymentStatus === 'success' ? 'Paid' : 'Pending'}
                             </span>
                           </div>
                           <p className="text-slate-400 text-xs">{new Date(order.createdAt || order.date).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>

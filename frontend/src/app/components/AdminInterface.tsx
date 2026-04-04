@@ -282,8 +282,8 @@ export function AdminInterface() {
                                 'bg-slate-100 text-slate-600'}`}>{order.status}</span>
                             </td>
                             <td className="px-4 py-3">
-                              <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${order.paymentStatus === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                                {order.paymentStatus === 'completed' ? 'Paid' : 'Pending'}
+                              <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${order.paymentStatus === 'success' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                {order.paymentStatus === 'success' ? 'Paid' : 'Pending'}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-xs text-slate-400 italic">
