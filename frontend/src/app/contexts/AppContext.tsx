@@ -40,6 +40,7 @@ export interface User {
   address?: string;
   favorites?: string[];
   photo?: string;
+  ignoredOrders?: string[];
 }
 
 export interface Order {
@@ -201,7 +202,7 @@ interface AppContextType {
   updatePaymentStatus: (paymentID: string, status: Payment['paymentStatus']) => void;
   generateReceipt: (paymentID: string) => string;
   getTransactionHistory: (userID: string) => Payment[];
-  createRazorpayOrder: (amount: number, currency: string) => RazorpayPayment;
+  createRazorpayOrder: (orderID: string, currency: string) => RazorpayPayment;
   capturePayment: (razorpayPaymentID: string, razorpayOrderID: string, razorpaySignature: string, method: RazorpayPayment['method']) => void;
 }
 
@@ -303,16 +304,34 @@ const MOCK_DELIVERY_ISSUES: DeliveryIssue[] = [
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('currentUser');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
   const [vendors, setVendors] = useState<Vendor[]>(MOCK_VENDORS);
   const [courierJobs, setCourierJobs] = useState<CourierJob[]>([]);
   const [courierProfiles, setCourierProfiles] = useState<CourierProfile[]>(MOCK_COURIER_PROFILES);
   const [cart, setCart] = useState<{ productId: string; quantity: number }[]>([]);
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
+  const [users, setUsers] = useState<User[]>(() => {
+    const saved = localStorage.getItem('app_users');
+    return saved ? JSON.parse(saved) : MOCK_USERS;
+  });
   const [complaints, setComplaints] = useState<Complaint[]>(MOCK_COMPLAINTS);
   const [deliveryIssues, setDeliveryIssues] = useState<DeliveryIssue[]>(MOCK_DELIVERY_ISSUES);
   const [payments, setPayments] = useState<Payment[]>([]);
+
+  React.useEffect(() => {
+    localStorage.setItem('app_users', JSON.stringify(users));
+  }, [users]);
+
+  React.useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('currentUser');
+    }
+  }, [currentUser]);
 
   const addProduct = (product: Product) => {
     setProducts(prev => [...prev, product]);
@@ -337,14 +356,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (currentUser) {
       setCurrentUser({
         ...currentUser,
-        kartCoins: currentUser.kartCoins + order.kartCoinsEarned,
+        kartCoins: order.paymentStatus === 'completed' ? currentUser.kartCoins + order.kartCoinsEarned : currentUser.kartCoins,
         orderHistory: [...currentUser.orderHistory, order]
       });
     }
   };
 
   const updateOrderStatus = (orderId: string, status: Order['status']) => {
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+    setOrders(prev => prev.map(o => {
+      if (o.id === orderId) {
+        if (status === 'delivered' && o.status !== 'delivered' && o.paymentStatus !== 'completed') {
+          if (currentUser && o.userId === currentUser.id) {
+            setCurrentUser({ ...currentUser, kartCoins: currentUser.kartCoins + o.kartCoinsEarned });
+          }
+        }
+        return { ...o, status };
+      }
+      return o;
+    }));
   };
 
   const addOrderRating = (orderId: string, rating: number, feedback: string) => {
@@ -422,6 +451,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const clearCart = () => {
     setCart([]);
+    if (currentUser) updateUser(currentUser.id, { cart: [] } as any);
   };
 
   const login = (email: string, password: string) => {
@@ -496,10 +526,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return payments.filter(p => p.userID === userID);
   };
 
-  const createRazorpayOrder = (amount: number, currency: string) => {
+  const createRazorpayOrder = (orderID: string, currency: string) => {
     const newRazorpayPayment: RazorpayPayment = {
       razorpaypaymentID: '',
-      razorpayorderID: `ORD${payments.length + 1}`,
+      razorpayorderID: orderID,
       razorpaySignature: '',
       method: 'card'
     };

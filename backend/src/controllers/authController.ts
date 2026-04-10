@@ -7,7 +7,7 @@ import { generateToken } from '../utils/helpers.js';
 import { AppError, asyncHandler } from '../middleware/errorMiddleware.js';
 import { logger } from '../utils/logger.js';
 
-const OTP_EXPIRY_MINUTES = 10;
+const OTP_EXPIRY_MINUTES = 5;
 const MAX_OTP_ATTEMPTS   = 3;
 
 // ─── Utility: generate a 6-digit numeric OTP ──────────────────────────────────

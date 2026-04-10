@@ -110,6 +110,7 @@ model Product {
   imageUrl    String?
   category    String?
   isAvailable Boolean  @default(true)
+  isDeleted   Boolean  @default(false)
 
   vendorId Int
   vendor   VendorProfile @relation(fields: [vendorId], references: [id])

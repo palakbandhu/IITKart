@@ -57,6 +57,7 @@ export function UserInterface() {
   const [location, setLocation]       = useState(currentUser?.address || '');
   const [selectedVendor, setSelectedVendor] = useState('all');
   const [favorites, setFavorites]     = useState<string[]>(currentUser?.favorites || []);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const [settingsData, setSettingsData] = useState({
     name: currentUser?.name || '', email: currentUser?.email || '',
@@ -110,26 +111,35 @@ export function UserInterface() {
   }));
 
   const toggleFavorite = (id: string) => {
-    const next = favorites.includes(id) ? favorites.filter(f => f !== id) : [...favorites, id];
-    setFavorites(next);
-    if (currentUser) updateUser(currentUser.id, { favorites: next });
-    toast.success(favorites.includes(id) ? 'Removed from favourites' : 'Added to favourites ❤️');
+    let isAdding = false;
+    setFavorites(prev => {
+      isAdding = !prev.includes(id);
+      const next = isAdding ? [...prev, id] : prev.filter(f => f !== id);
+      if (currentUser) updateUser(currentUser.id, { favorites: next });
+      return next;
+    });
+    // Use timeout to let state update determine correct toast message if we wanted, or just assume the operation correctly flips the current state value read at the start:
+    toast.success(!favorites.includes(id) ? 'Added to favourites ❤️' : 'Removed from favourites');
   };
 
   const handleCheckout = () => {
     if (!location.trim()) { toast.error('Please enter a delivery location'); return; }
     if (!cart.length)     { toast.error('Your cart is empty'); return; }
-    const order = {
-      id: `ORD${Date.now()}`,
-      userId: currentUser.id,
-      vendorId: products.find(p => p.id === cart[0].productId)?.vendorId || '',
-      products: cart.map(i => ({ productId: i.productId, quantity: i.quantity, price: products.find(p => p.id === i.productId)?.price || 0 })),
-      total: cartTotal, status: 'pending' as const,
-      kartCoinsEarned: Math.floor(cartTotal * 0.1),
-      date: new Date().toISOString(), deliveryAddress: location,
-      paymentStatus: 'pending' as const, paymentMethod: 'UPI'
-    };
-    setPendingOrder(order); setShowPaymentModal(true); setShowCart(false);
+    setIsCheckingOut(true);
+    setTimeout(() => {
+      const order = {
+        id: `ORD${Date.now()}`,
+        userId: currentUser.id,
+        vendorId: products.find(p => p.id === cart[0].productId)?.vendorId || '',
+        products: cart.map(i => ({ productId: i.productId, quantity: i.quantity, price: products.find(p => p.id === i.productId)?.price || 0 })),
+        total: cartTotal, status: 'pending' as const,
+        kartCoinsEarned: Math.floor(cartTotal * 0.1),
+        date: new Date().toISOString(), deliveryAddress: location,
+        paymentStatus: 'pending' as const, paymentMethod: 'UPI'
+      };
+      setPendingOrder(order); setShowPaymentModal(true); setShowCart(false);
+      setIsCheckingOut(false);
+    }, 500);
   };
 
   const handlePaymentSuccess = (paymentMethod: string, totalAmount: number) => {
@@ -389,11 +399,19 @@ export function UserInterface() {
                             );
                           })}
                         </div>
-                        <div className="mt-5 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-xl text-sm text-slate-600 dark:text-slate-400">
-                          {order.status === 'pending'   && '🕐 Awaiting shop confirmation…'}
-                          {order.status === 'accepted'  && '✅ Shop has accepted and is preparing your order'}
-                          {order.status === 'picked'    && '🚴 Your order is on the way!'}
-                          {order.status === 'delivered' && '✨ Order delivered! Hope you enjoyed your purchase'}
+                        <div className="mt-5 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-xl text-sm text-slate-600 dark:text-slate-400 flex justify-between items-center">
+                          <div>
+                            {order.status === 'pending'   && '🕐 Awaiting shop confirmation…'}
+                            {order.status === 'accepted'  && '✅ Shop has accepted and is preparing your order'}
+                            {order.status === 'picked'    && '🚴 Your order is on the way!'}
+                            {order.status === 'delivered' && '✨ Order delivered! Hope you enjoyed your purchase'}
+                            {order.status === 'cancelled' && '❌ Order has been cancelled'}
+                          </div>
+                          {order.status === 'pending' && (
+                            <button onClick={() => { updateOrderStatus(order.id, 'cancelled'); toast.success('Order cancelled'); }} className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg text-xs font-bold transition-colors">
+                              Cancel Order
+                            </button>
+                          )}
                         </div>
                       </div>
                       {/* Rating & complaint */}
@@ -522,9 +540,9 @@ export function UserInterface() {
                 </div>
                 <div className="bg-white dark:bg-[#0F1E3A] rounded-2xl border border-blue-100 dark:border-blue-900/30 shadow-sm p-5">
                   <h3 className="font-bold text-[#0F172A] dark:text-white mb-4 text-sm uppercase tracking-wider">Recent Earnings</h3>
-                  {userOrders.length === 0
+                  {userOrders.filter(o => o.paymentStatus === 'completed' && o.kartCoinsEarned > 0).length === 0
                     ? <p className="text-center text-slate-400 py-4 text-sm">Place an order to earn Kart Coins!</p>
-                    : userOrders.slice(0, 5).map(order => (
+                    : userOrders.filter(o => o.paymentStatus === 'completed' && o.kartCoinsEarned > 0).slice(0, 5).map(order => (
                       <div key={order.id} className="flex justify-between items-center py-2.5 border-b border-blue-50 dark:border-blue-900/20 last:border-0">
                         <div>
                           <p className="font-semibold text-[#0F172A] dark:text-white text-sm font-mono">#{order.id}</p>
@@ -572,7 +590,6 @@ export function UserInterface() {
                   </div>
                   {[
                     { label: 'Full Name',  icon: User,     field: 'name',    type: 'text',  placeholder: 'Your full name' },
-                    { label: 'Email',      icon: Mail,     field: 'email',   type: 'email', placeholder: 'your@email.com' },
                     { label: 'Phone',      icon: Phone,    field: 'phone',   type: 'tel',   placeholder: '10-digit number' },
                     { label: 'Address',    icon: HomeIcon, field: 'address', type: 'text',  placeholder: 'Hall X, Room XXX' },
                   ].map(f => {
@@ -652,8 +669,8 @@ export function UserInterface() {
                     <span>Total</span><span className="text-[#1E3A8A] dark:text-blue-300">₹{orderTotal.toFixed(2)}</span>
                   </div>
                 </div>
-                <button onClick={handleCheckout} className="w-full h-12 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white font-bold rounded-2xl transition-all shadow-lg shadow-blue-900/20 active:scale-95">
-                  Proceed to Checkout →
+                <button onClick={handleCheckout} disabled={isCheckingOut} className="w-full h-12 bg-[#1E3A8A] hover:bg-[#2B4FBA] disabled:bg-[#1E3A8A]/50 text-white font-bold rounded-2xl transition-all shadow-lg shadow-blue-900/20 active:scale-95">
+                  {isCheckingOut ? 'Processing...' : 'Proceed to Checkout →'}
                 </button>
               </div>
             )}

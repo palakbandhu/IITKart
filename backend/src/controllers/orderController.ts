@@ -24,6 +24,7 @@ export const createOrder = asyncHandler(async (req: AuthRequest, res: Response) 
     if (!product)                      throw new AppError(404, `Product ${item.productId} not found`);
     if (product.vendorId !== vendorId) throw new AppError(400, 'All products must belong to the same vendor');
     if (!product.isAvailable)          throw new AppError(400, `"${product.name}" is currently unavailable`);
+    if (item.quantity <= 0)            throw new AppError(400, `Quantity must be greater than 0 for "${product.name}"`);
     if (product.stock < item.quantity) throw new AppError(400, `Insufficient stock for "${product.name}"`);
 
     totalAmount += product.price * item.quantity;
@@ -92,7 +93,15 @@ export const getOrders = asyncHandler(async (req: AuthRequest, res: Response) =>
     if (!vendor) throw new AppError(404, 'Vendor profile not found');
 
     orders = await prisma.order.findMany({
-      where:   { vendorId: vendor.id },
+      where:   { 
+        vendorId: vendor.id,
+        payment: {
+          OR: [
+            { method: 'CASH_ON_DELIVERY' },
+            { status: 'SUCCESS' }
+          ]
+        }
+      },
       include: {
         items:    { include: { product: { select: { name: true, price: true } } } },
         customer: { select: { name: true, phone: true, hostel: true, roomNumber: true } },
@@ -155,8 +164,8 @@ export const updateOrderStatus = asyncHandler(async (req: AuthRequest, res: Resp
   if (role === 'VENDOR') {
     const vendor = await prisma.vendorProfile.findUnique({ where: { userId } });
     if (!vendor || vendor.id !== order.vendorId) throw new AppError(403, 'Not your order');
-    if (![OrderStatus.PREPARING, OrderStatus.READY].includes(status)) {
-      throw new AppError(400, 'Vendor can only set status to PREPARING or READY');
+    if (![OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.CANCELLED].includes(status)) {
+      throw new AppError(400, 'Vendor can only set status to PREPARING, READY, or CANCELLED');
     }
   }
 
@@ -168,6 +177,21 @@ export const updateOrderStatus = asyncHandler(async (req: AuthRequest, res: Resp
     }
     if (status === OrderStatus.PICKED_UP) {
       await prisma.order.update({ where: { id: orderId }, data: { riderId: rider.id } });
+    }
+  }
+
+  // Restock automatically if vendor cancels an unfulfilled order
+  if (status === OrderStatus.CANCELLED && order.status !== OrderStatus.CANCELLED) {
+    const fullOrder = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
+    if (fullOrder) {
+      await prisma.$transaction(
+        fullOrder.items.map(item =>
+          prisma.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          })
+        )
+      );
     }
   }
 

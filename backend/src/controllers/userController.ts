@@ -17,6 +17,7 @@ export const getUserProfile = asyncHandler(async (req: AuthRequest, res: Respons
       hostel: true,
       roomNumber: true,
       role: true,
+      profileImageUrl: true,
       createdAt: true
     }
   });
@@ -28,11 +29,12 @@ export const getUserProfile = asyncHandler(async (req: AuthRequest, res: Respons
 
 export const updateUserProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
   const userId = req.user.id;
-  const { name, phone, hostel, roomNumber } = req.body;
+  const { name, phone, hostel, roomNumber, photo, profileImageUrl } = req.body;
+  const imageUrl = photo || profileImageUrl;
 
   const updatedUser = await prisma.user.update({
     where: { id: userId },
-    data: { name, phone, hostel, roomNumber },
+    data: { name, phone, hostel, roomNumber, profileImageUrl: imageUrl },
     select: {
       id: true,
       name: true,
@@ -40,7 +42,8 @@ export const updateUserProfile = asyncHandler(async (req: AuthRequest, res: Resp
       phone: true,
       hostel: true,
       roomNumber: true,
-      role: true
+      role: true,
+      profileImageUrl: true
     }
   });
 

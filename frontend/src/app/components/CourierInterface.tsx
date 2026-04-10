@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Bike, Bell, DollarSign, TrendingUp, CheckCircle, XCircle, Clock,
   Star, MessageSquare, Settings, User, Mail, Phone, MapPin, Package,
-  Truck, AlertCircle, Store
+  Truck, AlertCircle, Store, X
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -40,14 +40,15 @@ const NAV_ITEMS: SidebarItem[] = [
 
 export function CourierInterface() {
   const navigate = useNavigate();
-  const { orders, currentUser, setCurrentUser, updateOrderStatus } = useApp();
+  const { orders, currentUser, setCurrentUser, updateOrderStatus, updateUser } = useApp();
 
   useEffect(() => { if (!currentUser || currentUser.role !== 'courier') navigate('/auth'); }, [currentUser, navigate]);
   if (!currentUser || currentUser.role !== 'courier') return null;
 
   const [activeTab, setActiveTab] = useState('deliveries');
+  const ignoredOrders = currentUser?.ignoredOrders || [];
   const [notifications, setNotifications] = useState<DeliveryNotification[]>(
-    orders.filter(o => o.status === 'pending').slice(0, 3).map((order, idx) => ({
+    orders.filter(o => o.status === 'pending' && !ignoredOrders.includes(o.id)).slice(0, 3).map((order, idx) => ({
       id: `notif-${order.id}`, orderId: order.id,
       from: ['Campus Cafe', 'PrintHub', 'QuickWash'][idx % 3],
       to: ['Hall 2, Room 201', 'Hall 5, Room 102', 'Hall 3, Room 305'][idx % 3],
@@ -87,6 +88,10 @@ export function CourierInterface() {
   };
 
   const handleReject = (id: string) => {
+    const notif = notifications.find(n => n.id === id);
+    if (notif && currentUser) {
+      updateUser(currentUser.id, { ignoredOrders: [...(currentUser.ignoredOrders || []), notif.orderId] });
+    }
     setNotifications(prev => prev.filter(n => n.id !== id));
     toast.info('Order declined');
   };
@@ -148,8 +153,11 @@ export function CourierInterface() {
                     <p className="text-slate-400 text-sm">New orders will appear here automatically</p>
                   </div>
                 ) : notifications.filter(n => n.status === 'pending').map(notif => (
-                  <div key={notif.id} className="bg-white dark:bg-[#0F1E3A] rounded-2xl border border-blue-100 dark:border-blue-900/30 p-5 shadow-sm">
-                    <div className="flex items-start justify-between mb-4">
+                  <div key={notif.id} className="relative bg-white dark:bg-[#0F1E3A] rounded-2xl border border-blue-100 dark:border-blue-900/30 p-5 shadow-sm">
+                    <button onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                      <X className="w-5 h-5" />
+                    </button>
+                    <div className="flex items-start justify-between mb-4 pr-6">
                       <div>
                         <p className="font-mono font-bold text-slate-400 text-xs mb-1">#{notif.orderId}</p>
                         <div className="flex items-center gap-3 text-sm">

@@ -10,6 +10,7 @@ export const createProduct = asyncHandler(async (req: AuthRequest, res: Response
 
   const vendor = await prisma.vendorProfile.findUnique({ where: { userId: req.user.id } });
   if (!vendor) throw new AppError(404, 'Vendor profile not found');
+  if (price !== undefined && price < 0) throw new AppError(400, 'Product price cannot be negative');
 
   const product = await prisma.product.create({
     data: { name, price, description, stock, imageUrl, category, vendorId: vendor.id },
@@ -24,7 +25,7 @@ export const getVendorProducts = asyncHandler(async (req: AuthRequest, res: Resp
   if (!vendor) throw new AppError(404, 'Vendor profile not found');
 
   const products = await prisma.product.findMany({
-    where:   { vendorId: vendor.id },
+    where:   { vendorId: vendor.id, isDeleted: false },
     orderBy: { createdAt: 'desc' },
   });
 
@@ -42,6 +43,7 @@ export const updateProduct = asyncHandler(async (req: AuthRequest, res: Response
   const product = await prisma.product.findUnique({ where: { id: productId } });
   if (!product)                    throw new AppError(404, 'Product not found');
   if (product.vendorId !== vendor.id) throw new AppError(403, 'Not authorized to update this product');
+  if (price !== undefined && price < 0) throw new AppError(400, 'Product price cannot be negative');
 
   const updated = await prisma.product.update({
     where: { id: productId },
@@ -67,10 +69,10 @@ export const deleteProduct = asyncHandler(async (req: AuthRequest, res: Response
   if (!vendor) throw new AppError(404, 'Vendor profile not found');
 
   const product = await prisma.product.findUnique({ where: { id: productId } });
-  if (!product)                      throw new AppError(404, 'Product not found');
+  if (!product || product.isDeleted) throw new AppError(404, 'Product not found');
   if (product.vendorId !== vendor.id) throw new AppError(403, 'Not authorized to delete this product');
 
-  await prisma.product.delete({ where: { id: productId } });
+  await prisma.product.update({ where: { id: productId }, data: { isDeleted: true } });
   res.json({ message: 'Product deleted successfully' });
 });
 
@@ -92,6 +94,7 @@ export const getAllProducts = asyncHandler(async (req: Request, res: Response) =
 
   const whereClause: any = {
     isAvailable: true,
+    isDeleted: false,
     vendor: { isOpen: true },
     ...(category && { category: { equals: category, mode: 'insensitive' } }),
     ...(vendorId && { vendorId }),
@@ -137,7 +140,7 @@ export const getAllProducts = asyncHandler(async (req: Request, res: Response) =
 // Returns the distinct list of categories that have at least one available product
 export const getCategories = asyncHandler(async (_req: Request, res: Response) => {
   const result = await prisma.product.findMany({
-    where:   { isAvailable: true, category: { not: null } },
+    where:   { isAvailable: true, isDeleted: false, category: { not: null } },
     select:  { category: true },
     distinct: ['category'],
     orderBy: { category: 'asc' },
@@ -163,7 +166,7 @@ export const getProductById = asyncHandler(async (req: Request, res: Response) =
     },
   });
 
-  if (!product) throw new AppError(404, 'Product not found');
+  if (!product || product.isDeleted) throw new AppError(404, 'Product not found');
 
   res.json(product);
 });
