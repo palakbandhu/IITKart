@@ -29,6 +29,9 @@ export const placeOrder = async (req: AuthRequest, res: Response, next: NextFunc
 
     // Pre-Order stock validation
     for (const item of items) {
+      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+        throw new AppError(`Invalid quantity for product ${item.productId}`, 400);
+      }
       const product = (products as any[]).find((p: any) => p.id === item.productId);
       if (!product) throw new AppError(`Product not found: ${item.productId}`, 404);
       if (Number(product.stockQuantity) < Number(item.quantity)) {
@@ -306,7 +309,14 @@ export const submitComplaint = async (req: AuthRequest, res: Response, next: Nex
 export const getActiveOrders = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const orders = await prisma.order.findMany({
-      where: { status: { in: ['pending', 'accepted', 'picked'] } },
+      where: { 
+        status: { in: ['pending', 'accepted', 'picked'] },
+        OR: [
+          { paymentMethod: 'COD' },
+          { paymentMethod: 'Cash on Delivery' },
+          { paymentStatus: 'success' }
+        ]
+      },
       include: {
         vendor: { select: { name: true } },
         items: { include: { product: true } }

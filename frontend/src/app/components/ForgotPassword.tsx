@@ -24,7 +24,7 @@ export function ForgotPassword({ onBack }: ForgotPasswordProps) {
   const [otpAttempts, setOtpAttempts] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [otpExpiry, setOtpExpiry] = useState<number | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState(900);
+  const [timeRemaining, setTimeRemaining] = useState(300);
 
   useEffect(() => {
     if (step !== 'otp' || !otpExpiry) return;
@@ -50,8 +50,8 @@ export function ForgotPassword({ onBack }: ForgotPasswordProps) {
     }
     
     setUserId(uid);
-    setOtpExpiry(Date.now() + 900000); // 15 mins
-    setTimeRemaining(900);
+    setOtpExpiry(Date.now() + 300000); // 5 mins
+    setTimeRemaining(300);
     toast.success(`OTP sent to your email!`);
     setStep('otp'); 
     setIsLoading(false);
@@ -96,7 +96,7 @@ export function ForgotPassword({ onBack }: ForgotPasswordProps) {
   const resetFlow = () => {
     setStep('identifier'); setIdentifier(''); setOtp('');
     setNewPassword(''); setConfirmPassword(''); setUserId('');
-    setResetToken(''); setOtpAttempts(0); setOtpExpiry(null); setTimeRemaining(900);
+    setResetToken(''); setOtpAttempts(0); setOtpExpiry(null); setTimeRemaining(300);
   };
 
   const handleResendOTP = async () => {
@@ -105,7 +105,7 @@ export function ForgotPassword({ onBack }: ForgotPasswordProps) {
     if (uid) {
       setUserId(uid);
       setOtpAttempts(0); setOtp('');
-      setOtpExpiry(Date.now() + 900000); setTimeRemaining(900);
+      setOtpExpiry(Date.now() + 300000); setTimeRemaining(300);
       toast.success(`New OTP sent to your email!`);
     } else {
       toast.error('Failed to resend OTP.');
@@ -222,9 +222,9 @@ export function ForgotPassword({ onBack }: ForgotPasswordProps) {
                   <span className={`font-bold ${timeRemaining < 60 ? 'text-red-500' : 'text-[#1E3A8A] dark:text-blue-300'}`}>⏱ {fmt(timeRemaining)}</span>
                 </div>
                 <div className="flex gap-2">
-                  <button type="button" onClick={handleResendOTP} disabled={isLoading || timeRemaining > 840}
+                  <button type="button" onClick={handleResendOTP} disabled={isLoading || timeRemaining > 240}
                     className="flex-1 h-11 border-2 border-blue-100 dark:border-blue-900/30 text-[#1E3A8A] dark:text-blue-300 font-bold rounded-xl text-sm hover:bg-blue-50 disabled:opacity-50 transition-colors">
-                    Resend {timeRemaining > 840 && `(${fmt(900 - timeRemaining)})`}
+                    Resend {timeRemaining > 240 && `(${fmt(300 - timeRemaining)})`}
                   </button>
                   <button type="submit" disabled={isLoading || otp.length !== 6}
                     className="flex-1 h-11 bg-[#1E3A8A] hover:bg-[#2B4FBA] disabled:opacity-60 text-white font-bold rounded-xl text-sm transition-all active:scale-95">

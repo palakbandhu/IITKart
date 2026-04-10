@@ -39,8 +39,18 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
 
 export const getPendingDeliveries = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const profile = await prisma.courierProfile.upsert({
+      where: { userId: req.user.id },
+      create: { userId: req.user.id },
+      update: {}
+    });
+
     const orders = await prisma.order.findMany({
-      where: { status: { in: ['pending', 'accepted'] }, courierId: null },
+      where: { 
+        status: { in: ['pending', 'accepted'] }, 
+        courierId: null,
+        id: { notIn: profile.ignoredOrders }
+      },
       include: { vendor: { select: { name: true, location: true } } },
       orderBy: { createdAt: 'desc' }
     });
@@ -73,6 +83,11 @@ export const acceptDelivery = async (req: AuthRequest, res: Response, next: Next
 
 export const rejectDelivery = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    await prisma.courierProfile.upsert({
+      where: { userId: req.user.id },
+      create: { userId: req.user.id, ignoredOrders: [req.params.orderId] },
+      update: { ignoredOrders: { push: req.params.orderId } }
+    });
     res.status(200).json({ success: true, message: 'Delivery rejected' });
   } catch (error) { next(error); }
 };
@@ -93,9 +108,17 @@ export const markDelivered = async (req: AuthRequest, res: Response, next: NextF
         where: { id: order.id },
         data: { 
           status: 'delivered', 
-          paymentStatus: order.paymentMethod === 'Cash on Delivery' ? 'success' : order.paymentStatus 
+          paymentStatus: order.paymentMethod === 'Cash on Delivery' || order.paymentMethod === 'COD' ? 'success' : order.paymentStatus,
+          coinsProcessed: true
         }
       });
+
+      if (!order.coinsProcessed) {
+        await tx.user.update({
+          where: { id: order.userId },
+          data: { kartCoins: { increment: order.kartCoinsEarned - order.kartCoinsUsed } }
+        });
+      }
 
       await tx.courierProfile.upsert({
         where: { userId: req.user.id },

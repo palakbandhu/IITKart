@@ -7,12 +7,7 @@ import { env } from '../config/env';
 
 export const createRazorpayOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { amount, currency, orderId } = req.body;
-
-    // Validate amount
-    if (!amount || amount <= 0) {
-      return next(new AppError('Valid amount is required', 400));
-    }
+    const { currency, orderId } = req.body;
 
     // Check if order exists and belongs to user
     const dbOrder = await prisma.order.findUnique({ where: { id: orderId } });
@@ -22,6 +17,13 @@ export const createRazorpayOrder = async (req: AuthRequest, res: Response, next:
     if (dbOrder.userId !== req.user.id) {
       return next(new AppError('Unauthorized: Order does not belong to user', 403));
     }
+
+    // Securely get amount from DB
+    const payment = await prisma.payment.findUnique({ where: { orderId } });
+    if (!payment) {
+      return next(new AppError('Payment record not found for this order', 404));
+    }
+    const amount = payment.amount;
 
     const order = await paymentService.createRazorpayOrder(amount, currency);
 
@@ -102,21 +104,10 @@ export const confirmCodPayment = async (req: AuthRequest, res: Response, next: N
     await prisma.order.update({
       where: { id: orderId },
       data: { 
-        paymentMethod: 'COD',
-        coinsProcessed: true
+        paymentMethod: 'Cash on Delivery',
+        paymentStatus: 'pending'
       }
     });
-
-    if (!order.coinsProcessed) {
-      await prisma.user.update({
-        where: { id: order.userId },
-        data: {
-          kartCoins: {
-            increment: order.kartCoinsEarned - order.kartCoinsUsed
-          }
-        }
-      });
-    }
 
     res.status(200).json({ success: true, message: 'COD payment confirmed successfully' });
   } catch (error) { next(error); }

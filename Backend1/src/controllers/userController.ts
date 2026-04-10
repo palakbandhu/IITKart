@@ -54,74 +54,6 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
   }
 };
 
-export const requestEmailUpdate = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const { newEmail } = req.body;
-    if (!newEmail) return next(new AppError('New email is required', 400));
-    
-    // Check if email already in use
-    const existing = await prisma.user.findUnique({ where: { email: newEmail } });
-    if (existing) return next(new AppError('Email already registered', 400));
-
-    // Generate OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
-
-    await prisma.user.update({
-      where: { id: req.user.id },
-      data: { pendingEmail: newEmail, otp, otpExpiry }
-    });
-
-    // We can use the existing notificationService to send this OTP
-    const { notificationService } = require('../services/notificationService');
-    await notificationService.sendOTPEmail(newEmail, otp);
-
-    res.status(200).json({ success: true, message: 'OTP sent to new email' });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const verifyEmailChange = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const { otp } = req.body;
-    if (!otp) return next(new AppError('OTP is required', 400));
-
-    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
-    if (!user || user.otp !== otp || !user.otpExpiry || user.otpExpiry < new Date()) {
-      return next(new AppError('Invalid or expired OTP', 400));
-    }
-    if (!user.pendingEmail) {
-      return next(new AppError('No pending email update found', 400));
-    }
-
-    // Update the email and clear pending
-    await prisma.$transaction(async (tx: any) => {
-      await tx.user.update({
-        where: { id: user.id },
-        data: { 
-          email: user.pendingEmail!, 
-          pendingEmail: null, 
-          otp: null, 
-          otpExpiry: null,
-          isVerified: true
-        }
-      });
-
-      if (user.role === 'vendor') {
-        await tx.vendor.update({
-          where: { userId: user.id },
-          data: { email: user.pendingEmail! }
-        });
-      }
-    });
-
-    res.status(200).json({ success: true, message: 'Email updated successfully' });
-  } catch (error) {
-    next(error);
-  }
-};
-
 export const getFavorites = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     res.status(200).json({ success: true, data: req.user.favorites });
@@ -163,7 +95,7 @@ export const toggleFavorite = async (req: AuthRequest, res: Response, next: Next
 export const getWallet = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const transactions = await prisma.order.findMany({
-      where: { userId: req.user.id, kartCoinsEarned: { gt: 0 } },
+      where: { userId: req.user.id, kartCoinsEarned: { gt: 0 }, coinsProcessed: true },
       orderBy: { createdAt: 'desc' },
       select: { id: true, total: true, kartCoinsEarned: true, createdAt: true, vendor: { select: { name: true } } }
     });

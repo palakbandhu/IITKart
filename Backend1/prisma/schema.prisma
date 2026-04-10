@@ -75,8 +75,6 @@ model User {
   kartCoins    Int        @default(0)
   status       UserStatus @default(active)
   isVerified   Boolean    @default(false)
-  otp          String?
-  otpExpiry    DateTime?
   pendingEmail String?
   favorites    String[] // productIds
   createdAt    DateTime   @default(now())
@@ -90,7 +88,6 @@ model User {
   complaints          Complaint[]
   reviews             ProductReview[]
   payments            Payment[]
-  passwordResetTokens PasswordResetToken[]
 }
 
 model Vendor {
@@ -127,6 +124,7 @@ model Product {
   image        String
   inStock      Boolean  @default(true)
   isBestseller Boolean  @default(false)
+  isDeleted    Boolean  @default(false)
   rating       Float?
   totalReviews Int      @default(0)
   stockQuantity Int      @default(0)
@@ -200,6 +198,7 @@ model CourierProfile {
   lookingForJob   Boolean  @default(false)
   totalDeliveries Int      @default(0)
   totalEarnings   Float    @default(0)
+  ignoredOrders   String[] @default([])
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -260,14 +259,16 @@ model Payment {
   updatedAt         DateTime      @updatedAt
 }
 
-model PasswordResetToken {
+model OTPRecord {
   id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  token     String   @unique
+  email     String
+  otp       String
+  purpose   String   // 'SIGNUP' | 'RESET_PASSWORD'
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  @@index([email, otp, purpose])
 }
 
 model PendingUser {
@@ -278,8 +279,6 @@ model PendingUser {
   role         Role
   phone        String?   @unique
   address      String?
-  otp          String
-  otpExpiry    DateTime
   createdAt    DateTime @default(now())
 }
 

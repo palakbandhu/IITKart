@@ -402,9 +402,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const cacheBust = `?t=${Date.now()}`;
       const res = await api.get('/vendors/products' + cacheBust);
+      const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').replace(/\/api$/, '');
+      const formatImage = (img: string) => img?.startsWith('/uploads') ? `${apiBase}${img}` : img;
+
       let allProducts = res.data.data.map((p: any) => ({
         ...p,
-        vendorName: p.vendor?.name || "Unknown Vendor"
+        vendorName: p.vendor?.name || "Unknown Vendor",
+        image: formatImage(p.image)
       }));
       
       if (currentUser && (currentUser.role === 'VENDOR' || currentUser.role === 'vendor')) {
@@ -412,7 +416,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const myProductsRes = await api.get('/vendors/me/products' + cacheBust);
           const myProducts = myProductsRes.data.data.map((p: any) => ({
             ...p,
-            vendorName: currentUser.name || "My Shop"
+            vendorName: currentUser.name || "My Shop",
+            image: formatImage(p.image)
           }));
           const myProductIds = new Set(myProducts.map((p: any) => p.id));
           allProducts = allProducts.filter((p: any) => !myProductIds.has(p.id)).concat(myProducts);
@@ -509,8 +514,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setProducts(prev => prev.filter(p => p.id !== productId));
     } catch (error) {
       console.error("Failed to remove product:", error);
-      // Fallback for mock IDs
-      setProducts(prev => prev.filter(p => p.id !== productId));
     }
   };
 
@@ -680,12 +683,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleFavorite = async (productId: string) => {
+    setCurrentUser((prev: any) => {
+      if (!prev) return prev;
+      const isFav = prev.favorites?.includes(productId);
+      const newFavs = isFav 
+        ? prev.favorites.filter((id: string) => id !== productId)
+        : [...(prev.favorites || []), productId];
+      return { ...prev, favorites: newFavs };
+    });
+
     try {
-      const res = await api.post(`/users/favorites/${productId}`);
-      const { favorites } = res.data.data;
-      setCurrentUser(prev => prev ? { ...prev, favorites } : null);
+      await api.post(`/users/favorites/${productId}`);
+      // UI already optimistically updated
     } catch (error) {
       console.error("Failed to toggle favorite:", error);
+      // Rollback optimistic update
+      setCurrentUser((prev: any) => {
+        if (!prev) return prev;
+        const isFav = prev.favorites?.includes(productId);
+        const rolledBackFavs = isFav 
+          ? prev.favorites.filter((id: string) => id !== productId)
+          : [...(prev.favorites || []), productId];
+        return { ...prev, favorites: rolledBackFavs };
+      });
     }
   };
 

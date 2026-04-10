@@ -223,10 +223,24 @@ export function PaymentModal({ open, onOpenChange, order, onPaymentSuccess }: Pa
     setPaymentStep('select'); setSelectedMethod('upi'); setReceipt('');
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
     if (paymentStep === 'success') {
       handleCompleteOrder();
     } else {
+      if (order?.id) {
+        try {
+          const token = localStorage.getItem('token');
+          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+          await fetch(`${apiUrl}/orders/${order.id}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ status: 'cancelled' })
+          });
+          toast.info('Order was cancelled.');
+        } catch (e) {
+          console.error('Failed to abort order on close', e);
+        }
+      }
       setPaymentStep('select');
       setSelectedMethod('upi');
       onOpenChange(false);

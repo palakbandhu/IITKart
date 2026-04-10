@@ -40,8 +40,18 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     // Upsert into PendingUser
     const pendingUser = await prisma.pendingUser.upsert({
       where: { email },
-      update: { name, passwordHash, role: dbRole, phone, address, otp, otpExpiry },
-      create: { name, email, passwordHash, role: dbRole, phone, address, otp, otpExpiry }
+      update: { name, passwordHash, role: dbRole, phone, address },
+      create: { name, email, passwordHash, role: dbRole, phone, address }
+    });
+
+    // Create OTP Record
+    await prisma.oTPRecord.create({
+      data: {
+        email: pendingUser.email,
+        otp,
+        purpose: 'SIGNUP',
+        expiresAt: otpExpiry
+      }
     });
 
     await notificationService.sendRegistrationOTP(pendingUser.email, otp);
@@ -102,11 +112,15 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
     if (!user) return next(new AppError('User not found', 404));
 
     const otp = authService.generateOTP();
-    const token = await authService.hashOTP(otp);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
 
-    await prisma.passwordResetToken.create({
-      data: { userId: user.id, token, expiresAt }
+    await prisma.oTPRecord.create({
+      data: {
+        email: user.email,
+        otp,
+        purpose: 'RESET_PASSWORD',
+        expiresAt
+      }
     });
 
     await notificationService.sendOTPEmail(user.email, otp);
@@ -127,31 +141,30 @@ export const verifyOtp = async (req: Request, res: Response, next: NextFunction)
   try {
     const { userId, otp } = req.body;
     
-    const tokens = await prisma.passwordResetToken.findMany({
-      where: { userId, used: false, expiresAt: { gt: new Date() } },
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return next(new AppError('User not found', 404));
+
+    const otpRecord = await prisma.oTPRecord.findFirst({
+      where: { 
+        email: user.email,
+        otp,
+        purpose: 'RESET_PASSWORD',
+        used: false,
+        expiresAt: { gt: new Date() }
+      },
       orderBy: { createdAt: 'desc' }
     });
 
-    if (tokens.length === 0) return next(new AppError('Invalid or expired OTP', 400));
+    if (!otpRecord) return next(new AppError('Invalid or expired OTP', 400));
 
-    let validToken = null;
-    for (const t of tokens) {
-      if (await authService.comparePassword(otp, t.token)) {
-        validToken = t;
-        break;
-      }
-    }
-
-    if (!validToken) return next(new AppError('Invalid OTP', 400));
-
-    await prisma.passwordResetToken.update({
-      where: { id: validToken.id },
+    await prisma.oTPRecord.update({
+      where: { id: otpRecord.id },
       data: { used: true }
     });
 
     res.status(200).json({
       success: true,
-      data: { verified: true, resetToken: validToken.token }
+      data: { verified: true, resetToken: otpRecord.id } // Returning OTP Record ID as proof for resetPassword
     });
   } catch (error) {
     next(error);
@@ -162,8 +175,8 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
   try {
     const { userId, resetToken, newPassword } = req.body;
     
-    const tokenRecord = await prisma.passwordResetToken.findFirst({
-      where: { userId, token: resetToken, used: true }
+    const tokenRecord = await prisma.oTPRecord.findFirst({
+      where: { id: resetToken, purpose: 'RESET_PASSWORD', used: true }
     });
 
     if (!tokenRecord) return next(new AppError('Invalid reset attempt', 400));
@@ -175,7 +188,7 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
       data: { passwordHash }
     });
 
-    await prisma.passwordResetToken.deleteMany({ where: { userId } });
+    await prisma.oTPRecord.delete({ where: { id: tokenRecord.id } });
 
     res.status(200).json({ success: true, message: 'Password reset successfully' });
   } catch (error) {
@@ -188,10 +201,16 @@ export const verifyRegistrationOtp = async (req: Request, res: Response, next: N
     const { userId, otp } = req.body;
     
     const pendingUser = await prisma.pendingUser.findFirst({
-      where: { id: userId, otp, otpExpiry: { gt: new Date() } }
+      where: { id: userId }
+    });
+    
+    if (!pendingUser) return next(new AppError('Session expired. Please register again.', 400));
+
+    const otpRecord = await prisma.oTPRecord.findFirst({
+      where: { email: pendingUser.email, otp, purpose: 'SIGNUP', expiresAt: { gt: new Date() } }
     });
 
-    if (!pendingUser) return next(new AppError('Invalid or expired OTP', 400));
+    if (!otpRecord) return next(new AppError('Invalid or expired OTP', 400));
 
     // Transaction to create real user and remove pending
     const user = await prisma.$transaction(async (tx: any) => {
@@ -251,11 +270,15 @@ export const resendRegistrationOtp = async (req: Request, res: Response, next: N
     }
 
     const otp = authService.generateOTP();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
-    await prisma.pendingUser.update({
-      where: { id: userId },
-      data: { otp, otpExpiry }
+    await prisma.oTPRecord.create({
+      data: {
+        email: pendingUser.email,
+        otp,
+        purpose: 'SIGNUP',
+        expiresAt: otpExpiry
+      }
     });
 
     await notificationService.sendRegistrationOTP(pendingUser.email, otp);

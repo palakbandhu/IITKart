@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '@/api/axios';
 import { useApp } from '@/app/contexts/AppContext';
 import { Header } from '@/app/components/Header';
 import { Sidebar, SidebarItem } from '@/app/components/Sidebar';
@@ -96,6 +97,7 @@ export function UserInterface() {
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingOrder, setPendingOrder] = useState<any>(null);
+  const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
 
   React.useEffect(() => {
     if (authLoading) return;
@@ -152,6 +154,8 @@ export function UserInterface() {
   const handleCheckout = async () => {
     if (!location.trim()) { toast.error('Please enter a delivery location'); return; }
     if (!cart.length)     { toast.error('Your cart is empty'); return; }
+    if (isProcessingCheckout) return;
+    setIsProcessingCheckout(true);
 
     try {
       const token = localStorage.getItem('token');
@@ -179,6 +183,7 @@ export function UserInterface() {
       if (!response.ok) {
         const error = await response.json();
         toast.error(error.message || 'Failed to create order');
+        setIsProcessingCheckout(false);
         return;
       }
 
@@ -187,20 +192,22 @@ export function UserInterface() {
       setPendingOrder(createdOrder);
       setShowPaymentModal(true);
       setShowCart(false);
+      setIsProcessingCheckout(false);
     } catch (error: any) {
       console.error('Checkout error:', error);
       toast.error(error.message || 'Checkout failed');
+      setIsProcessingCheckout(false);
     }
   };
 
   const handlePaymentSuccess = (paymentMethod: string, totalAmount: number) => {
+    clearCart();
+    setShowPaymentModal(false);
     if (pendingOrder) {
-      clearCart();
-      setShowPaymentModal(false);
       setPendingOrder(null);
       toast.success(`Order placed! You earned ${pendingOrder.kartCoinsEarned} Kart Coins`);
-      setActiveTab('orders');
     }
+    setActiveTab('orders');
   };
 
   const handleFeedbackSubmit = () => {
@@ -385,7 +392,7 @@ export function UserInterface() {
                               ) : null}
                               <div className="flex items-center justify-between">
                                 <span className="font-extrabold text-[#1E3A8A] dark:text-blue-300 text-sm">₹{product.price}</span>
-                                <button onClick={() => { addToCart(product.id); toast.success('Added to cart!'); }}
+                                <button onClick={() => { addToCart(product.id); toast.success('Added to cart!', { position: 'bottom-center' }); }}
                                   className="w-7 h-7 rounded-xl bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow">
                                   <Plus className="w-3.5 h-3.5" />
                                 </button>
@@ -464,11 +471,18 @@ export function UserInterface() {
                             );
                           })}
                         </div>
-                        <div className="mt-5 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-xl text-sm text-slate-600 dark:text-slate-400">
-                          {order.status === 'pending'   && '🕐 Awaiting shop confirmation…'}
-                          {order.status === 'accepted'  && '✅ Shop has accepted and is preparing your order'}
-                          {order.status === 'picked'    && '🚴 Your order is on the way!'}
-                          {order.status === 'delivered' && '✨ Order delivered! Hope you enjoyed your purchase'}
+                        <div className="mt-5 flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/10 rounded-xl text-sm text-slate-600 dark:text-slate-400">
+                          <div>
+                            {order.status === 'pending'   && '🕐 Awaiting shop confirmation…'}
+                            {order.status === 'accepted'  && '✅ Shop has accepted and is preparing your order'}
+                            {order.status === 'picked'    && '🚴 Your order is on the way!'}
+                            {order.status === 'delivered' && '✨ Order delivered! Hope you enjoyed your purchase'}
+                          </div>
+                          {order.status === 'pending' && (
+                            <button onClick={() => updateOrderStatus(order.id, 'cancelled')} className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition-all shadow shadow-red-500/20 active:scale-95">
+                              Cancel Order
+                            </button>
+                          )}
                         </div>
                       </div>
                       {/* Rating & complaint */}
@@ -688,7 +702,8 @@ export function UserInterface() {
                             }
                             setSettingsData({ ...settingsData, [f.field]: val });
                           }}
-                          className={`h-11 bg-[#F0F4FF] dark:bg-[#0A1628] border-blue-100 dark:border-blue-900/30 rounded-xl focus:border-[#1E3A8A] ${
+                          disabled={f.field === 'email'}
+                          className={`h-11 bg-[#F0F4FF] dark:bg-[#0A1628] border-blue-100 dark:border-blue-900/30 rounded-xl focus:border-[#1E3A8A] disabled:opacity-60 disabled:cursor-not-allowed ${
                             f.field === 'phone' && settingsData.phone && !isValidPhone(settingsData.phone) ? 'border-red-500 focus:border-red-500' : ''
                           }`} 
                         />
@@ -716,8 +731,8 @@ export function UserInterface() {
                             formData.append('email', settingsData.email);
                             formData.append('phone', settingsData.phone);
                             formData.append('address', settingsData.address);
-                            // We bypass context updateUser purely for the file upload, then sync state
-                            const res = await (window as any).apiPatch?.('/users/profile', formData, {
+                            // Use the proper api instance for multipart form data
+                            const res = await api.patch('/users/profile', formData, {
                                headers: { 'Content-Type': 'multipart/form-data' }
                             });
                             if (res?.data?.data) {
@@ -831,8 +846,8 @@ export function UserInterface() {
                     <span>Total</span><span className="text-[#1E3A8A] dark:text-blue-300">₹{orderTotal.toFixed(2)}</span>
                   </div>
                 </div>
-                <button onClick={handleCheckout} className="w-full h-12 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white font-bold rounded-2xl transition-all shadow-lg shadow-blue-900/20 active:scale-95">
-                  Proceed to Checkout →
+                <button onClick={handleCheckout} disabled={isProcessingCheckout} className="w-full h-12 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white font-bold rounded-2xl transition-all shadow-lg shadow-blue-900/20 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed">
+                  {isProcessingCheckout ? 'Processing...' : 'Proceed to Checkout →'}
                 </button>
               </div>
             )}

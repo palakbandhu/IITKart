@@ -144,11 +144,16 @@ export function CourierInterface() {
     }
   };
 
-  const handleReject = (orderId: string) => {
+  const handleReject = async (orderId: string) => {
     setIncomingPopup({ open: false, order: null });
     // Optimistically hide it from current view until next poll ensures it's fresh
     setPendingOrders(prev => prev.filter(p => p.id !== orderId));
-    toast.info('Order declined / dismissed.');
+    try {
+      await api.post(`/riders/deliveries/${orderId}/reject`);
+      toast.info('Order declined / dismissed.');
+    } catch (e) {
+      console.error('Failed to reject delivery:', e);
+    }
   };
 
   const handleMarkDelivered = async (orderId: string) => {
@@ -485,7 +490,7 @@ export function CourierInterface() {
       </Dialog>
 
       {/* Incoming Broadcast POPUP Modal! */}
-      <Dialog open={incomingPopup.open} onOpenChange={() => {}}>
+      <Dialog open={incomingPopup.open} onOpenChange={(open) => !open && setIncomingPopup({ open: false, order: null })}>
         <DialogContent className="bg-white dark:bg-[#0F1E3A] border-blue-100 dark:border-blue-900/30 rounded-2xl max-w-sm overflow-hidden p-0">
           <div className="bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-5 flex items-center justify-center gap-3">
             <div className="relative">

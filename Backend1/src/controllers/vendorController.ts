@@ -16,7 +16,7 @@ export const getVendors = async (req: any, res: Response, next: NextFunction) =>
 export const getAllProducts = async (req: any, res: Response, next: NextFunction) => {
   try {
     const products = await prisma.product.findMany({
-      where: { inStock: true },
+      where: { inStock: true, isDeleted: false },
       include: { vendor: { select: { name: true } } }
     });
     res.status(200).json({ success: true, data: products });
@@ -27,7 +27,7 @@ export const getVendorById = async (req: any, res: Response, next: NextFunction)
   try {
     const vendor = await prisma.vendor.findUnique({
       where: { id: req.params.id },
-      include: { products: { where: { inStock: true } } }
+      include: { products: { where: { inStock: true, isDeleted: false } } }
     });
     if (!vendor) return next(new AppError('Vendor not found', 404));
     res.status(200).json({ success: true, data: vendor });
@@ -56,7 +56,7 @@ export const updateVendorProfile = async (req: AuthRequest, res: Response, next:
 export const getVendorProducts = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const vendor = await prisma.vendor.findUnique({ where: { userId: req.user.id } });
-    const products = await prisma.product.findMany({ where: { vendorId: vendor!.id } });
+    const products = await prisma.product.findMany({ where: { vendorId: vendor!.id, isDeleted: false } });
     res.status(200).json({ success: true, data: products });
   } catch (error) { next(error); }
 };
@@ -65,6 +65,7 @@ export const addProduct = async (req: any, res: Response, next: NextFunction) =>
   try {
     const { name, category, description } = req.body;
     let price = req.body.price ? Number(req.body.price) : 0;
+    if (price < 0) return next(new AppError('Product price cannot be negative', 400));
     let inStock = req.body.inStock === 'true' || req.body.inStock === true;
     let image = req.body.image;
     
@@ -106,7 +107,11 @@ export const updateProduct = async (req: any, res: Response, next: NextFunction)
     if (!product) return next(new AppError('Product not found or unauthorized', 404));
 
     const updateData = { ...req.body };
-    if (req.body.price !== undefined) updateData.price = Number(req.body.price);
+    if (req.body.price !== undefined) {
+      const price = Number(req.body.price);
+      if (price < 0) return next(new AppError('Product price cannot be negative', 400));
+      updateData.price = price;
+    }
     if (req.body.inStock !== undefined) updateData.inStock = req.body.inStock === 'true' || req.body.inStock === true;
     
     if (updateData.image && typeof updateData.image === 'object') {
@@ -137,7 +142,10 @@ export const updateProduct = async (req: any, res: Response, next: NextFunction)
 export const deleteProduct = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const vendor = await prisma.vendor.findUnique({ where: { userId: req.user.id } });
-    await prisma.product.deleteMany({ where: { id: req.params.id, vendorId: vendor!.id } });
+    await prisma.product.updateMany({ 
+      where: { id: req.params.id, vendorId: vendor!.id },
+      data: { isDeleted: true, inStock: false } 
+    });
     res.status(200).json({ success: true, message: 'Product deleted' });
   } catch (error) { next(error); }
 };
