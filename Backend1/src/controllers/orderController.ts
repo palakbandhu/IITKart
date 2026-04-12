@@ -26,7 +26,6 @@ const processCheckout = async (
   }
 
   const validatedVendorId = await orderService.validateSingleVendorCart(items);
-  if (validatedVendorId !== vendorId) throw new AppError('Vendor mismatch', 400);
 
   const productIds = items.map((i: any) => i.productId);
   const products: any[] = await prisma.product.findMany({ where: { id: { in: productIds } } });
@@ -58,26 +57,6 @@ const processCheckout = async (
   const kartCoinsUsed = useKartCoins ? KART_COIN_THRESHOLD : 0;
 
   const order = await prisma.$transaction(async (tx: any) => {
-    // Atomic Stock Decrement
-    for (const item of items) {
-      const product = await tx.product.findUnique({
-        where: { id: item.productId },
-        select: { stockQuantity: true, name: true }
-      });
-      
-      if (!product || product.stockQuantity < item.quantity) {
-        throw new AppError(`Stock sold out during checkout for ${product?.name || 'product'}`, 400);
-      }
-
-      await tx.product.update({
-        where: { id: item.productId },
-        data: {
-          stockQuantity: { decrement: item.quantity },
-          inStock: product.stockQuantity - item.quantity > 0
-        }
-      });
-    }
-
     const newOrder = await tx.order.create({
       data: {
         userId,
@@ -129,7 +108,7 @@ export const validateCart = async (req: AuthRequest, res: Response, next: NextFu
     }
 
     const productIds = items.map((i: any) => i.productId);
-    const products: any[] = await prisma.product.findMany({ where: { id: { in: productIds } } });
+    const products: any[] = await prisma.product.findMany({ where: { id: { in: productIds }, isDeleted: false } });
 
     const validationResults = items.map((item: any) => {
       const product = (products as any[]).find((p: any) => p.id === item.productId);
@@ -174,12 +153,15 @@ export const validateCart = async (req: AuthRequest, res: Response, next: NextFu
 
 export const placeOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { vendorId, items, deliveryAddress, paymentMethod, useKartCoins } = req.body;
+    const { items, deliveryAddress, paymentMethod, useKartCoins } = req.body;
 
     // Validate deliveryAddress
     if (!deliveryAddress || !deliveryAddress.trim()) {
       return next(new AppError('Delivery address is required', 400));
     }
+
+    // Instant pre-queue validation: Get authoritative vendorId and ensure items aren't deleted
+    const vendorId = await orderService.validateSingleVendorCart(items);
 
     // Queue check - inform user if queue is backing up
     const queueStatus = checkoutQueue.getQueueStatus();
@@ -283,7 +265,7 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response, next: N
       });
 
       // Stock Reversion if order is cancelled
-      if (status === 'cancelled' && existingOrder.status !== 'cancelled') {
+      if (status === 'cancelled' && ['accepted', 'picked', 'delivered'].includes(existingOrder.status)) {
         const orderItems = await tx.orderItem.findMany({
           where: { orderId: req.params.id }
         });

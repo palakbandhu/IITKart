@@ -215,10 +215,34 @@ export const acceptOrder = async (req: AuthRequest, res: Response, next: NextFun
     
     if (!order) return next(new AppError('Order not found, not pending, or payment failed. Cannot accept unpaid online orders.', 404));
 
-    const updated = await prisma.order.update({
-      where: { id: order.id },
-      data: { status: 'accepted' }
+    const updated = await prisma.$transaction(async (tx: any) => {
+      const orderItems = await tx.orderItem.findMany({ where: { orderId: order.id } });
+
+      for (const item of orderItems) {
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: { stockQuantity: true, name: true }
+        });
+
+        if (!product || product.stockQuantity < item.quantity) {
+          throw new AppError(`Insufficient stock to accept this order: ${product?.name || 'product'} sold out`, 400);
+        }
+
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            stockQuantity: { decrement: item.quantity },
+            inStock: product.stockQuantity - item.quantity > 0
+          }
+        });
+      }
+
+      return await tx.order.update({
+        where: { id: order.id },
+        data: { status: 'accepted' }
+      });
     });
+    
     res.status(200).json({ success: true, data: updated });
   } catch (error) { next(error); }
 };

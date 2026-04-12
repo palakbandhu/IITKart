@@ -390,7 +390,7 @@ export function VendorInterface() {
                             <button onClick={() => openEdit(p)} className="flex-1 h-7 bg-blue-50 dark:bg-blue-900/20 text-[#1E3A8A] dark:text-blue-400 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 hover:bg-blue-100 transition-colors">
                               <Edit className="w-3 h-3" /> Edit
                             </button>
-                            <button onClick={() => { if (window.confirm('Delete this product?')) { removeProduct(p.id); toast.success('Deleted!'); } }}
+                            <button onClick={() => { if (window.confirm('Delete this product?')) { removeProduct(p.id).then(() => toast.success('Deleted!')).catch(() => toast.error('Failed to delete product. Database is out of sync. Please run npx prisma db push in Backend1.')); } }}
                               className="flex-1 h-7 bg-red-50 dark:bg-red-900/10 text-red-500 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 hover:bg-red-100 transition-colors">
                               <Trash2 className="w-3 h-3" /> Del
                             </button>

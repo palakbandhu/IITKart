@@ -53,7 +53,7 @@ export const listUsers = async (req: Request, res: Response, next: NextFunction)
         where,
         skip: (page - 1) * limit,
         take: limit,
-        select: { id: true, name: true, email: true, phone: true, role: true, status: true, createdAt: true },
+        select: { id: true, name: true, email: true, phone: true, role: true, status: true, kartCoins: true, createdAt: true },
         orderBy: { createdAt: 'desc' }
       }),
       prisma.user.count({ where })
@@ -264,10 +264,10 @@ export const updateDeliveryIssue = async (req: Request, res: Response, next: Nex
 export const exportUsersCSV = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const users = await prisma.user.findMany({
-      select: { id: true, name: true, email: true, role: true, status: true, createdAt: true }
+      select: { id: true, name: true, email: true, role: true, status: true, kartCoins: true, createdAt: true }
     });
     
-    const fields = ['id', 'name', 'email', 'role', 'status', 'createdAt'];
+    const fields = ['id', 'name', 'email', 'role', 'status', 'kartCoins', 'createdAt'];
     const csv = parse(users, { fields });
     
     res.header('Content-Type', 'text/csv');

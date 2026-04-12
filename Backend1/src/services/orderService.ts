@@ -16,8 +16,8 @@ export const orderService = {
   validateSingleVendorCart: async (items: { productId: string }[]): Promise<string> => {
     if (items.length === 0) throw new AppError('Cart is empty', 400);
     const productIds = items.map(i => i.productId);
-    const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
-    if (products.length !== productIds.length) throw new AppError('Some products not found', 404);
+    const products = await prisma.product.findMany({ where: { id: { in: productIds }, isDeleted: false } });
+    if (products.length !== productIds.length) throw new AppError('Some products not found or are no longer available', 404);
     
     const vendorIds = new Set(products.map(p => p.vendorId));
     if (vendorIds.size > 1) throw new AppError('All products must be from the same vendor', 400);

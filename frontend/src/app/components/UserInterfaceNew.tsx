@@ -46,7 +46,7 @@ const NAV_ITEMS: SidebarItem[] = [
 export function UserInterface() {
   const navigate = useNavigate();
   const {
-    products, currentUser, cart, addToCart, removeFromCart,
+    products, currentUser, cart, addToCart, removeFromCart, setCart,
     updateCartQuantity, clearCart, addOrder, updateOrder, updateOrderStatus, orders, vendors,
     updateUser, addComplaint, rateOrder, complaints, authLoading, logout, toggleFavorite: contextToggleFavorite
   } = useApp();
@@ -238,7 +238,6 @@ export function UserInterface() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          vendorId: products.find(p => p.id === cart[0].productId)?.vendorId || '',
           items: cart.map(i => ({ productId: i.productId, quantity: i.quantity })),
           deliveryAddress: location,
           paymentMethod: 'UPI',

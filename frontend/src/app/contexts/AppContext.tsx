@@ -159,8 +159,8 @@ interface AppContextType {
   products: Product[];
   refreshProducts: () => Promise<void>;
   addProduct: (product: Product) => Promise<void>;
-  removeProduct: (productId: string) => void;
-  updateProduct: (productId: string, updates: Partial<Product>) => void;
+  removeProduct: (productId: string) => Promise<any>;
+  updateProduct: (productId: string, updates: Partial<Product>) => Promise<void>;
 
   currentUser: User | null;
   setCurrentUser: (user: User | null) => void;
@@ -178,15 +178,15 @@ interface AppContextType {
 
   orders: Order[];
   refreshOrders: () => Promise<void>;
-  addOrder: (order: Order) => void;
-  updateOrderStatus: (orderId: string, status: Order['status']) => void;
+  addOrder: (order: any) => Promise<void>;
+  updateOrderStatus: (orderId: string, status: Order['status']) => Promise<void>;
   addOrderRating: (orderId: string, rating: number, feedback: string) => void;
   rateOrder: (orderId: string, type: 'product' | 'courier' | 'vendor', rating: number, feedback: string) => Promise<void>;
-  assignCourier: (orderId: string, courierId: string) => void;
+  assignCourier: (orderId: string, courierId: string) => Promise<void>;
   updateOrder: (orderId: string, updates: Partial<Order>) => void;
 
   vendors: Vendor[];
-  updateVendor: (vendorId: string, updates: Partial<Vendor>) => void;
+  updateVendor: (vendorId: string, updates: Partial<Vendor>) => Promise<void>;
 
   courierJobs: CourierJob[];
   addCourierJob: (job: CourierJob) => void;
@@ -201,6 +201,7 @@ interface AppContextType {
   removeFromCart: (productId: string) => void;
   updateCartQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
+  setCart: React.Dispatch<React.SetStateAction<{ productId: string; quantity: number }[]>>;
 
   users: User[];
   updateUser: (userId: string, updates: Partial<User>) => void;
@@ -519,8 +520,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       await api.delete(`/vendors/me/products/${productId}`);
       setProducts(prev => prev.filter(p => p.id !== productId));
+      return true;
     } catch (error) {
       console.error("Failed to remove product:", error);
+      throw error;
     }
   };
 
@@ -990,6 +993,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addToCart,
         removeFromCart,
         updateCartQuantity,
+        setCart,
         users,
         updateUser,
         addUser,
