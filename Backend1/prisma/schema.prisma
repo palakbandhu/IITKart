@@ -104,6 +104,7 @@ model Vendor {
   status            VendorStatus @default(active)
   availability      String?
   location          String?
+  isOpen            Boolean      @default(true)
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 

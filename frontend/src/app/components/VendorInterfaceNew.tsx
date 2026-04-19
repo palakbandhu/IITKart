@@ -132,7 +132,7 @@ export function VendorInterface() {
   const [showProductDialog, setShowProductDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState({ name: '', category: 'Food', price: 0, description: '', image: '', stock: 10 });
-  const [settingsData, setSettingsData] = useState({ name: vendor?.name || '', email: currentUser?.email || '', phone: currentUser?.phone || '', address: vendor?.location || '' });
+  const [settingsData, setSettingsData] = useState({ name: vendor?.name || '', email: currentUser?.email || '', phone: currentUser?.phone || '', address: vendor?.location || '', isOpen: vendor?.isOpen ?? true });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   // Sync settings data when currentUser/vendor loads asynchronously
@@ -141,9 +141,10 @@ export function VendorInterface() {
       name: vendor?.name || currentUser?.name || '',
       email: currentUser?.email || '',
       phone: currentUser?.phone || '',
-      address: vendor?.location || currentUser?.address || ''
+      address: vendor?.location || currentUser?.address || '',
+      isOpen: vendor?.isOpen ?? true
     });
-  }, [currentUser?.id, vendor?.id]);
+  }, [currentUser?.id, vendor?.id, vendor?.isOpen]);
 
   const handleSaveSettings = async () => {
     if (!vendor || !currentUser) return;
@@ -170,7 +171,8 @@ export function VendorInterface() {
     try {
       await updateVendor(vendor.id, {
         name: settingsData.name,
-        location: settingsData.address
+        location: settingsData.address,
+        isOpen: settingsData.isOpen
       });
       await updateUser(currentUser.id, {
         name: settingsData.name,
@@ -300,17 +302,6 @@ export function VendorInterface() {
                               );
                             })()}
                           </div>
-                        )}
-                        {order.status === 'pending' && (
-                          <button onClick={async () => {
-                            try {
-                              await updateOrderStatus(order.id, 'accepted');
-                              toast.success('Order accepted!');
-                            } catch (err) {
-                              toast.error('Failed to accept order');
-                            }
-                          }}
-                            className="w-full h-9 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white text-xs font-bold rounded-xl transition-all active:scale-95">Accept Order</button>
                         )}
                       </div>
                     ))}
@@ -475,6 +466,21 @@ export function VendorInterface() {
                       </div>
                     );
                   })}
+                  <div className="space-y-2 pb-2">
+                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Shop Visibility</Label>
+                    <div className="flex items-center gap-3 bg-[#F0F4FF] dark:bg-[#0A1628] p-3 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                      <div className="flex-1">
+                        <p className="font-bold text-[#0F172A] dark:text-white text-sm">Shop is {settingsData.isOpen ? 'Open' : 'Closed'}</p>
+                        <p className="text-xs text-slate-400">{settingsData.isOpen ? 'Your products are visible to customers' : 'Your products are hidden from the store'}</p>
+                      </div>
+                      <button 
+                        onClick={() => setSettingsData({ ...settingsData, isOpen: !settingsData.isOpen })}
+                        className={`relative w-12 h-6 rounded-full transition-colors ${settingsData.isOpen ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+                      >
+                        <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${settingsData.isOpen ? 'translate-x-6' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+                  </div>
                   <div className="flex gap-3 pt-2">
                     <button onClick={handleSaveSettings} disabled={isSavingSettings || !isValidPhone(settingsData.phone) || !isValidTextInput(settingsData.name) || !isValidTextInput(settingsData.address) || !isValidEmail(settingsData.email)} className="flex-1 h-11 bg-[#1E3A8A] hover:bg-[#2B4FBA] text-white font-bold rounded-xl transition-all active:scale-95 text-sm disabled:opacity-70 disabled:cursor-not-allowed">
                       {isSavingSettings ? 'Saving...' : 'Save Changes'}

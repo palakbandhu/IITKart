@@ -7,7 +7,7 @@ export const getVendors = async (req: any, res: Response, next: NextFunction) =>
   try {
     const vendors = await prisma.vendor.findMany({
       where: { status: 'active' },
-      select: { id: true, userId: true, name: true, location: true, availability: true, rating: true, status: true, totalOrders: true, totalEarnings: true, products: true }
+      select: { id: true, userId: true, name: true, location: true, availability: true, isOpen: true, rating: true, status: true, totalOrders: true, totalEarnings: true, products: true }
     });
     res.status(200).json({ success: true, data: vendors });
   } catch (error) { next(error); }
@@ -20,7 +20,8 @@ export const getAllProducts = async (req: any, res: Response, next: NextFunction
       where: { 
         inStock: true, 
         isDeleted: false,
-        stockQuantity: { gt: 0 }  // Only return products with actual stock available
+        stockQuantity: { gt: 0 },  // Only return products with actual stock available
+        vendor: { isOpen: true }   // Only show products if vendor is open
       },
       include: { vendor: { select: { name: true } } }
     });
@@ -56,10 +57,14 @@ export const getVendorProfile = async (req: AuthRequest, res: Response, next: Ne
 
 export const updateVendorProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { availability, riderRequirements, needsRider, location, name } = req.body;
+    const { availability, riderRequirements, needsRider, location, name, isOpen } = req.body;
+    const updateData: any = { availability, riderRequirements, needsRider, location, name };
+    if (isOpen !== undefined) {
+      updateData.isOpen = isOpen;
+    }
     const vendor = await prisma.vendor.update({
       where: { userId: req.user.id },
-      data: { availability, riderRequirements, needsRider, location, name }
+      data: updateData
     });
     res.status(200).json({ success: true, data: vendor });
   } catch (error) { next(error); }

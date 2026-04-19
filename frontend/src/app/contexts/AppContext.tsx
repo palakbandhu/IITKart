@@ -83,6 +83,7 @@ export interface Vendor {
   status: 'active' | 'suspended';
   availability: string;
   location?: string;
+  isOpen?: boolean;
 }
 
 export interface CourierJob {
